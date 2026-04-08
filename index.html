@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher MJ | Interactive Math Tools</title>
+    <title>Teacher MJ | Math Innovation Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -11,30 +11,94 @@
         .glass { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
         .shimmer { background: linear-gradient(90deg, #60a5fa, #c084fc, #4ade80, #60a5fa); background-size: 200% 100%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shimmer 5s linear infinite; }
         @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        .instruction-card { border-left: 4px solid #3b82f6; padding-left: 1.5rem; margin-bottom: 2rem; }
     </style>
 </head>
-<body class="h-screen flex items-center justify-center p-6">
-    <div class="max-w-2xl w-full text-center">
-        <h1 class="text-5xl font-black mb-2 uppercase tracking-tighter">Teacher <span class="shimmer">MJ</span></h1>
-        <p class="text-slate-400 mb-12 font-medium tracking-widest uppercase text-xs">Mathematics Innovation Hub</p>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <a href="mind-game.html" class="glass p-8 rounded-3xl hover:bg-white/10 transition-all group border-b-4 border-blue-500">
-                <div class="text-4xl mb-4 group-hover:scale-110 transition-transform">🧠</div>
-                <h2 class="text-xl font-bold mb-2">Mind Your Decisions</h2>
-                <p class="text-slate-500 text-sm">Strategic review game with mystery boxes and bonus points.</p>
-            </a>
+<body class="min-h-screen flex flex-col items-center p-6 lg:p-12 overflow-x-hidden">
+    
+    <div class="max-w-4xl w-full text-center mb-16">
+        <h1 class="text-6xl font-black mb-4 uppercase tracking-tighter">Teacher <span class="shimmer">MJ</span></h1>
+        <p class="text-slate-400 font-bold tracking-[0.3em] uppercase text-[10px]">Mathematics Classroom Innovations</p>
+    </div>
 
-            <a href="quiz-master.html" class="glass p-8 rounded-3xl hover:bg-white/10 transition-all group border-b-4 border-emerald-500">
-                <div class="text-4xl mb-4 group-hover:scale-110 transition-transform">🏆</div>
-                <h2 class="text-xl font-bold mb-2">Quiz Master Pro</h2>
-                <p class="text-slate-500 text-sm">Tiered competition engine with CSV/Excel support and KaTeX.</p>
-            </a>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl w-full mb-20">
+        <a href="mind-game.html" class="glass p-10 rounded-[2.5rem] hover:bg-white/10 transition-all group border-b-8 border-blue-500 shadow-2xl">
+            <div class="text-5xl mb-6 group-hover:rotate-12 transition-transform">🧠</div>
+            <h2 class="text-2xl font-black mb-3 uppercase italic">Mind Your Decisions</h2>
+            <p class="text-slate-400 text-sm leading-relaxed">A high-stakes review game where students decide to "Keep" or "Give" mystery boxes. Perfect for energizing the class during drill lessons.</p>
+        </a>
+
+        <a href="quiz-master.html" class="glass p-10 rounded-[2.5rem] hover:bg-white/10 transition-all group border-b-8 border-emerald-500 shadow-2xl">
+            <div class="text-5xl mb-6 group-hover:scale-110 transition-transform">🏆</div>
+            <h2 class="text-2xl font-black mb-3 uppercase italic">Quiz Master Pro</h2>
+            <p class="text-slate-400 text-sm leading-relaxed">A tiered competition engine (Easy, Average, Difficult) with full KaTeX support for complex Math equations and CSV bulk-loading.</p>
+        </a>
+    </div>
+
+    <div class="max-w-5xl w-full glass rounded-[3rem] p-10 lg:p-16 mb-20 border border-white/5 shadow-inner">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-black uppercase tracking-tight mb-2">Teacher's User Manual</h2>
+            <div class="h-1 w-20 bg-blue-500 mx-auto rounded-full"></div>
         </div>
 
-        <div class="mt-12 text-[10px] text-slate-600 font-bold tracking-widest uppercase">
-            Developed for DepEd Mathematics • 2026
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+            
+            <div class="instruction-card border-blue-500">
+                <h3 class="text-xl font-black text-blue-400 uppercase mb-4">🧠 How to play: Mind Your Decisions</h3>
+                <ul class="space-y-4 text-slate-300 text-sm leading-relaxed">
+                    <li class="flex gap-3"><span class="font-bold text-blue-500">1.</span> <b>Setup:</b> Click the Editor to paste your questions or upload a CSV. Add your class groups (Max 6).</li>
+                    <li class="flex gap-3"><span class="font-bold text-blue-500">2.</span> <b>The Box:</b> Select a numbered box to reveal a question. Students have 60 seconds to solve it.</li>
+                    <li class="flex gap-3"><span class="font-bold text-blue-500">3.</span> <b>The Decision:</b> If a group gets it right, they receive a permanent +5 points. Then, they must choose:
+                        <br>• <b>KEEP:</b> The mystery points in the box are added to <i>their</i> score.
+                        <br>• <b>GIVE:</b> The mystery points are added to <i>all other</i> teams instead.</li>
+                    <li class="flex gap-3"><span class="font-bold text-blue-500">4.</span> <b>Strategy:</b> Boxes can contain negative points! Giving away a negative box reduces opponents' scores.</li>
+                </ul>
+            </div>
+
+            <div class="instruction-card border-emerald-500">
+                <h3 class="text-xl font-black text-emerald-400 uppercase mb-4">🏆 How to play: Quiz Master Pro</h3>
+                <ul class="space-y-4 text-slate-300 text-sm leading-relaxed">
+                    <li class="flex gap-3"><span class="font-bold text-emerald-500">1.</span> <b>Tiered System:</b> Prepare questions for three levels: Easy (1pt), Average (3pts), and Difficult (5pts).</li>
+                    <li class="flex gap-3"><span class="font-bold text-emerald-500">2.</span> <b>Shortcuts:</b> Use <b>Spacebar</b> to start the countdown, <b>'R'</b> to reveal the answer, and <b>'N'</b> for the next question.</li>
+                    <li class="flex gap-3"><span class="font-bold text-emerald-500">3.</span> <b>Bounty Mode:</b> Press <b>'B'</b> to toggle Bonus Points (doubles the score for that round).</li>
+                    <li class="flex gap-3"><span class="font-bold text-emerald-500">4.</span> <b>Math Support:</b> For fractions or roots, use LaTeX code inside $ symbols (e.g., $\frac{1}{2}$).</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div class="mt-16 bg-white/5 rounded-3xl p-8 border border-white/10">
+            <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                📂 CSV Preparation Guide
+            </h4>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-[11px] text-slate-400 uppercase tracking-wider">
+                    <thead>
+                        <tr class="border-b border-white/10">
+                            <th class="pb-3 px-2">Question (Col A)</th>
+                            <th class="pb-3 px-2">Opt A-D (Col B-E)</th>
+                            <th class="pb-3 px-2">Answer (Col F)</th>
+                            <th class="pb-3 px-2">Tier (Col G)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="py-4 px-2 text-slate-200">What is $2+2$?</td>
+                            <td class="py-4 px-2 italic">4, 5, 6, 7</td>
+                            <td class="py-4 px-2 text-emerald-400">4</td>
+                            <td class="py-4 px-2 text-blue-400">Easy</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-6 text-[10px] text-slate-500 text-center font-medium italic">Note: Keep columns B-E blank for "Identification" style questions.</p>
         </div>
     </div>
+
+    <footer class="text-center pb-12">
+        <p class="text-[10px] text-slate-600 font-bold tracking-[0.4em] uppercase mb-2">Designed for the Philippine Department of Education</p>
+        <p class="text-xs text-slate-400">Created with ❤️ by <span class="text-blue-500 font-black">Teacher MJ</span></p>
+    </footer>
+
 </body>
 </html>
