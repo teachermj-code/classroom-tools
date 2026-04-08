@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mind Your Decisions!</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet">
+  <style>
+    html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; }
+    body { font-family: 'Outfit', sans-serif; background: #0f172a; color: #e2e8f0; overflow: hidden; }
+    #root { overflow: auto; }
+    .glass-strong { background: rgba(30,41,59,0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+    .shimmer-text {
+      background: linear-gradient(90deg, #45a3e5, #864cbf, #66bf39, #45a3e5);
+      background-size: 200% 100%;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; animation: shimmer 3s linear infinite;
+    }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    .anim-pop { animation: pop-in 0.4s ease-out forwards; }
+    @keyframes pop-in { 0%{transform:scale(0.5);opacity:0} 60%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    @keyframes score-float-up {
+      0% { transform: translateY(0); opacity: 0; }
+      20% { transform: translateY(-10px); opacity: 1; }
+      80% { transform: translateY(-30px); opacity: 1; }
+      100% { transform: translateY(-50px); opacity: 0; }
+    }
+    .score-float {
+      position: absolute;
+      pointer-events: none;
+      font-weight: 900;
+      font-size: 1.5rem;
+      animation: score-float-up 1.5s ease-out forwards;
+      z-index: 50;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    .btn-keep { background: linear-gradient(135deg, #66bf39, #4a9e20); }
+    .btn-give { background: linear-gradient(135deg, #ff3355, #cc1a3a); }
+    
+    .team-name-display {
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .winner-glow {
+      box-shadow: 0 0 50px rgba(102, 191, 57, 0.3);
+      border-color: #66bf39 !important;
+    }
+  </style>
+ </head>
+ <body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const BLUE = '#45a3e5'; const PURPLE = '#864cbf'; const GREEN = '#66bf39'; const ORANGE = '#eb670f'; const RED = '#ff3355';
+const ANIMAL_ICONS = ["🦁", "🐼", "🐸", "🦊", "🐨", "🐯", "🐵", "🐧", "🐷", "🦋", "🦖", "🦄"];
+
+const defaultPoints = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5];
+
+const defaultQuestionsStr = `The total measure of all the outer faces of a solid figure. | | | | | Surface Area
+A graph that shows parts of a whole using sections of a circle. | | | | | Pie chart
+The rate at which an object moves from one place to another. | | | | | Speed
+The amount of space occupied inside a three-dimensional figure. | | | | | Volume
+A figure formed by combining two or more simple plane figures. | | | | | Composite Figure
+The length of space traveled by a moving object. | | | | | Distance
+The duration of an event or how long it takes to travel a certain distance. | | | | | Time
+The complete amount represented in a pie chart, usually equal to 100%. | | | | | Whole
+A solid figure with two circular bases and a curved surface. | | | | | Cylinder
+A specific part or slice of a circle in a pie chart. | | | | | Sector
+What is the sum of all the angles in a pie chart? | 90° | 180° | 360° | 100° | 360°
+If a pie chart represents 200 students and 25% like math, how many students like math? | 50 | 25 | 100 | 150 | 50
+A car travels 150 kilometers in 3 hours. What is its average speed? | 40 km/h | 50 km/h | 60 km/h | 450 km/h | 50 km/h
+How far will a bus travel in 4 hours if its average speed is 60 km/h? | 120 km | 200 km | 240 km | 300 km | 240 km
+How long will it take for a cyclist traveling at 15 km/h to cover a distance of 45 km? | 2 hours | 4 hours | 5 hours | 3 hours | 3 hours
+What is the volume of a rectangular prism with length 5cm, width 3cm, and height 4cm? | 60 cm³ | 35 cm³ | 12 cm³ | 47 cm³ | 60 cm³
+Find the volume of a cube with an edge of 6 cm. | 36 cm³ | 216 cm³ | 18 cm³ | 144 cm³ | 216 cm³
+What is the surface area of a cube with an edge of 5 cm? | 150 cm² | 25 cm² | 125 cm² | 100 cm² | 150 cm²
+Find the surface area of a rectangular box with dimensions 2m by 3m by 4m. | 24 m² | 48 m² | 52 m² | 60 m² | 52 m²
+A composite figure is made of a square (side 4m) and a rectangle (4m by 6m). Total area? | 40 m² | 24 m² | 16 m² | 30 m² | 40 m²
+What is the volume of a cylinder with radius 3cm and height 10cm? (Use π=3.14) | 94.2 cm³ | 188.4 cm³ | 28.26 cm³ | 282.6 cm³ | 282.6 cm³
+In a pie chart, what angle represents 50% of the data? | 90° | 100° | 360° | 180° | 180°
+A runner completes a 10 km race in 0.5 hours. What is his speed? | 5 km/h | 20 km/h | 15 km/h | 10 km/h | 20 km/h
+Find the volume of a cone with a radius of 3cm and a height of 4cm. (Use π=3.14) | 113.04 cm³ | 75.36 cm³ | 37.68 cm³ | 28.26 cm³ | 37.68 cm³
+A train moves at a steady speed of 80 km/h. How far does it go in 2.5 hours? | 160 km | 200 km | 240 km | 180 km | 200 km
+Rectangle (8m x 5m) + triangle (base 8m, height 3m) attached. Total area? | 40 m² | 64 m² | 52 m² | 76 m² | 52 m²
+If the area of one face of a cube is 25 cm², what is its total surface area? | 150 cm² | 125 cm² | 100 cm² | 200 cm² | 150 cm²
+If a sector has an angle of 90°, what percentage of the whole is it? | 50% | 25% | 90% | 33% | 25%
+A bird flies 120 meters in 15 seconds. What is its speed? | 6 m/s | 10 m/s | 15 m/s | 8 m/s | 8 m/s
+A rectangular tank is 2m long, 1.5m wide, and 2m high. What is its volume? | 4 m³ | 5.5 m³ | 7 m³ | 6 m³ | 6 m³
+If a person walks 4 km in 1 hour, what is their speed? | | | | | 4 km/h
+In a pie chart, if a sector represents 25%, what is its angle? | | | | | 90 degrees
+What is the volume of a rectangular prism with dimensions 2m, 2m, and 5m? | | | | | 20 m³
+If a cube has an edge length of 3 cm, what is its surface area? | | | | | 54 cm²
+How long will it take to travel 100 km at a speed of 50 km/h? | | | | | 2 hours
+How far will a boat travel in 3 hours at a speed of 25 km/h? | | | | | 75 km
+Find the volume of a cylinder with radius 2cm and height 5cm. (Use π=3.14) | | | | | 62.8 cm³
+If 50% of 400 students like apples, how many like apples? | | | | | 200 students
+A figure is made of two identical squares, each with a side of 3 m. Total area? | | | | | 18 m²
+What is the surface area of a rectangular box with dimensions 1 m by 2 m by 3 m? | | | | | 22 m²`;
+
+class AudioController {
+  constructor() {
+    this.ctx = null; this.muted = false;
+    this.bgMusic = new Audio('GameBG.mp3');
+    this.bgMusic.loop = true; this.bgMusic.volume = 0.4;
+    this.celebMusic = new Audio('GameOver.mp3');
+    this.celebMusic.volume = 0.6; this.celebMusic.loop = false;
+  }
+  init() { 
+    if (this.ctx) return; 
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+  }
+  setMute(m) { this.muted = m; this.bgMusic.muted = m; this.celebMusic.muted = m; }
+  _osc(type, freq, dur, gain = 0.1, delay = 0) {
+    if(!this.ctx || this.muted) return;
+    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, this.ctx.currentTime + delay);
+    g.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + delay + 0.01);
+    g.gain.linearRampToValueAtTime(0, this.ctx.currentTime + delay + dur);
+    o.connect(g); g.connect(this.ctx.destination); o.start(this.ctx.currentTime + delay); o.stop(this.ctx.currentTime + delay + dur);
+  }
+  tick() { this._osc('square', 800, 0.04); }
+  ding() { this._osc('sine', 880, 0.15, 0.2); this._osc('sine', 1320, 0.2, 0.15, 0.08); }
+  reveal() { for(let i=0; i<6; i++) this._osc('sine', 400+i*150, 0.15, 0.1, i*0.06); }
+  startMusic() { this.stopEnd(); this.bgMusic.currentTime = 0; this.bgMusic.play().catch(() => {}); }
+  stopMusic() { this.bgMusic.pause(); }
+  playEnd() { this.stopMusic(); this.celebMusic.currentTime = 0; this.celebMusic.play().catch(() => {}); }
+  stopEnd() { this.celebMusic.pause(); this.celebMusic.currentTime = 0; }
+}
+const audio = new AudioController();
+
+function RollingNumber({ target }) {
+  const [display, setDisplay] = useState(target);
+  useEffect(() => {
+    if (display === target) return;
+    const step = target > display ? 1 : -1;
+    const timer = setInterval(() => {
+      setDisplay(prev => {
+        if (prev === target) { clearInterval(timer); return prev; }
+        const diff = target - prev;
+        const move = step * Math.max(1, Math.ceil(Math.abs(diff) / 10));
+        if ((step > 0 && prev + move >= target) || (step < 0 && prev + move <= target)) { clearInterval(timer); return target; }
+        return prev + move;
+      });
+    }, 30);
+    return () => clearInterval(timer);
+  }, [target]);
+  return <span>{display}</span>;
+}
+
+function Setup({ onStart }) {
+  const [teams, setTeams] = useState([{ name: 'Group 1', icon: '🦁' }, { name: 'Group 2', icon: '🐼' }]);
+  const [qsIn, setQsIn] = useState(defaultQuestionsStr);
+  const [showEditor, setShowEditor] = useState(false);
+  const [fileStatus, setFileStatus] = useState('');
+  const fileRef = useRef(null);
+
+  const downloadCSV = () => {
+    const content = "Question, Option A, Option B, Option C, Option D, Correct Answer\nWhat is 5+5?, 8, 10, 12, 15, 10\nIdentification Question, , , , , AnswerText";
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'quiz_template.csv'; a.click();
+  };
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (file) { 
+        const reader = new FileReader(); 
+        reader.onload = (ev) => {
+            setQsIn(ev.target.result);
+            setFileStatus(`File "${file.name}" uploaded!`);
+            setTimeout(() => setFileStatus(''), 3000);
+        }; 
+        reader.readAsText(file); 
+    }
+  };
+
+  const parseQuestions = (text) => {
+    const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+    return lines.map((line, index) => {
+        const delimiter = line.includes('|') ? '|' : ',';
+        const cols = line.split(delimiter).map(c => c.trim());
+        if (index === 0 && (cols[0].toLowerCase().includes('question') || cols[cols.length-1].toLowerCase().includes('answer'))) {
+            return null;
+        }
+        if (cols.length >= 6) {
+            const q = cols[0];
+            const opts = cols.slice(1, 5).filter(o => o !== "");
+            const a = cols[5];
+            return opts.length > 0 ? { q, options: opts, a } : { q, a };
+        } else if (cols.length >= 2) {
+            return { q: cols[0], a: cols[cols.length - 1] };
+        }
+        return null;
+    }).filter(Boolean);
+  };
+
+  return (
+    <div className="h-full w-full flex items-center justify-center p-4 bg-[#0f172a] overflow-y-auto no-scrollbar">
+      <div className="glass-strong rounded-3xl p-8 max-w-2xl w-full border border-white/10 shadow-2xl anim-pop">
+        <h1 className="text-4xl font-black mb-2 text-center shimmer-text uppercase">Mind Your Decisions!</h1>
+        <div className="space-y-6 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {teams.map((t, i) => (
+              <div key={i} className="flex gap-2 items-center bg-slate-900/50 p-2 rounded-xl border border-slate-700">
+                <select value={t.icon} onChange={e => { const n = [...teams]; n[i].icon = e.target.value; setTeams(n); }} className="bg-slate-800 text-lg rounded-lg outline-none">{ANIMAL_ICONS.map(icon => <option key={icon}>{icon}</option>)}</select>
+                <input value={t.name} maxLength={15} onChange={e => { const n = [...teams]; n[i].name = e.target.value; setTeams(n); }} className="flex-1 bg-transparent text-white text-sm focus:outline-none" placeholder="Team Name"/>
+                {teams.length > 2 && <button onClick={() => setTeams(teams.filter((_, idx) => idx !== i))} className="text-slate-600 px-2 hover:text-red-400">✕</button>}
+              </div>
+            ))}
+            {teams.length < 6 && <button onClick={() => setTeams([...teams, { name: `Group ${teams.length + 1}`, icon: ANIMAL_ICONS[teams.length % ANIMAL_ICONS.length] }])} className="py-2 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm font-bold hover:border-blue-500 transition-all">+ Add Group</button>}
+          </div>
+          <div className="border-t border-white/5 pt-4">
+            <div className="flex justify-between items-center mb-2">
+                <button onClick={() => setShowEditor(!showEditor)} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{showEditor ? '▾ Hide Quiz Editor' : '▸ Open Quiz Editor'}</button>
+                {showEditor && (
+                    <div className="flex gap-2">
+                        <button onClick={downloadCSV} className="text-[9px] bg-slate-700 px-2 py-1 rounded text-white uppercase font-bold">Template</button>
+                        <button onClick={() => fileRef.current.click()} className="text-[9px] bg-blue-600 px-2 py-1 rounded text-white uppercase font-bold">Upload CSV</button>
+                    </div>
+                )}
+            </div>
+            <input type="file" ref={fileRef} className="hidden" accept=".csv,.txt" onChange={handleFile}/>
+            {fileStatus && <p className="text-green-400 text-[10px] font-bold mb-2">{fileStatus}</p>}
+            {showEditor && (
+                <div className="space-y-2 anim-pop">
+                    <textarea value={qsIn} onChange={e => setQsIn(e.target.value)} className="w-full h-40 bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-slate-400 focus:border-blue-500 outline-none" placeholder="Paste CSV or type here... (Column A: Q, B-E: Options, F: Ans)"/>
+                </div>
+            )}
+          </div>
+          <button onClick={() => {
+            audio.init();
+            const parsedQs = parseQuestions(qsIn);
+            onStart(teams, parsedQs, defaultPoints);
+          }} className="w-full py-4 rounded-2xl font-black text-xl text-white shadow-2xl active:scale-95 transition-all hover:scale-[1.01]" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>START QUIZ</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Scoreboard({ teams, scoreEffects }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between px-6 py-4 glass-strong rounded-2xl mb-4 border border-white/5 shadow-lg gap-4 relative">
+      <div className="flex flex-wrap gap-6 items-center flex-1">
+        {teams.map((t, i) => (
+          <div key={t.id} className="flex flex-col items-center relative">
+            {scoreEffects[t.id]?.map(eff => (
+              <div key={eff.id} className="score-float" style={{ color: eff.pts >= 0 ? GREEN : RED }}>{eff.pts >= 0 ? `+${eff.pts}` : eff.pts}</div>
+            ))}
+            <span className="text-xl mb-1">{t.icon}</span>
+            <span className="font-bold text-[10px] uppercase opacity-70 team-name-display" style={{color: (i % 2 === 0 ? BLUE : PURPLE)}}>{t.name}</span>
+            <span className={`font-black text-2xl transition-all ${t.score < 0 ? 'text-red-500' : (t.score > 0 ? 'text-green-500' : 'text-white')}`}><RollingNumber target={t.score} /></span>
+          </div>
+        ))}
+      </div>
+      <div className="text-center">
+        <h2 className="text-sm font-black shimmer-text uppercase">Mind Your Decisions!</h2>
+        <button onClick={() => audio.setMute(!audio.muted)} className="text-[10px] text-slate-500 uppercase font-bold mt-1 bg-slate-800 px-2 py-1 rounded">{audio.muted ? '🔇' : '🔊'}</button>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [state, setState] = useState('setup');
+  const [teams, setTeams] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [pointPool, setPointPool] = useState([]);
+  const [used, setUsed] = useState(new Set());
+  const [currentQ, setCurrentQ] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanTile, setScanTile] = useState(null);
+  const [selectedTile, setSelectedTile] = useState(null);
+  const [timer, setTimer] = useState(60);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [winners, setWinners] = useState([]);
+  const [revealResults, setRevealResults] = useState([]);
+  const [scoreEffects, setScoreEffects] = useState({});
+  const timerRef = useRef(null);
+
+  const startGame = (tData, qs, pts) => {
+    audio.startMusic();
+    setTeams(tData.map((t, i) => ({ ...t, id: i + 1, score: 0 })));
+    setQuestions(qs.sort(() => Math.random() - 0.5));
+    setPointPool(pts); setUsed(new Set()); setWinners([]); setScoreEffects({});
+    setState('board');
+  };
+
+  const pickRandom = () => {
+    const available = Array.from({length: questions.length}, (_, i) => i + 1).filter(n => !used.has(n));
+    if(!available.length) return;
+    setScanning(true); setSelectedTile(null);
+    let count = 0;
+    const interval = setInterval(() => {
+      setScanTile(available[Math.floor(Math.random() * available.length)]);
+      audio.tick(); count++;
+      if(count >= 15) { clearInterval(interval); setSelectedTile(available[Math.floor(Math.random() * available.length)]); setScanning(false); audio.ding(); }
+    }, 80);
+  };
+
+  const triggerScoreEffect = (teamId, pts) => {
+    const id = Date.now() + Math.random();
+    setScoreEffects(prev => ({ ...prev, [teamId]: [...(prev[teamId] || []), { id, pts }] }));
+    setTimeout(() => { setScoreEffects(prev => ({ ...prev, [teamId]: (prev[teamId] || []).filter(e => e.id !== id) })); }, 1500);
+  };
+
+  useEffect(() => {
+    if (!timerRunning) return;
+    timerRef.current = setInterval(() => { setTimer(t => { if (t <= 1) { clearInterval(timerRef.current); setTimerRunning(false); return 0; } return t - 1; }); }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [timerRunning]);
+
+  const processFinalScores = () => {
+    const next = [...teams];
+    winners.forEach(id => {
+      const team = next.find(t => t.id === id);
+      team.score += 5;
+      triggerScoreEffect(id, 5);
+    });
+
+    revealResults.forEach(r => {
+      if(r.choice === 'keep') { 
+        next.find(t => t.id === r.teamId).score += r.pts; 
+        triggerScoreEffect(r.teamId, r.pts);
+      } else { 
+        const others = next.filter(t => t.id !== r.teamId);
+        others.forEach(t => { 
+          t.score += r.pts; 
+          triggerScoreEffect(t.id, r.pts);
+        }); 
+      } 
+    });
+    setTeams(next); 
+    setUsed(prev => new Set([...prev, selectedTile])); 
+    setSelectedTile(null); 
+    setRevealResults([]); 
+    setWinners([]); 
+    setState('board');
+  };
+
+  const handleCorrectAnswerConfirmation = () => {
+    if(!winners.length) { 
+        setUsed(prev => new Set([...prev, selectedTile])); 
+        setSelectedTile(null); 
+        setState('board'); 
+        return; 
+    }
+    confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 }, colors: [GREEN, BLUE, PURPLE] });
+    setState('decision');
+  };
+
+  return (
+    <div className="h-full w-full flex flex-col p-4 bg-[#0f172a] select-none no-scrollbar overflow-hidden">
+      {state === 'setup' && <Setup onStart={startGame} />}
+      {state !== 'setup' && (
+        <div className="max-w-6xl w-full mx-auto h-full flex flex-col">
+          <Scoreboard teams={teams} scoreEffects={scoreEffects} />
+          <div className="flex-1 overflow-auto no-scrollbar py-4 relative">
+            {state === 'board' && (
+              <div className="h-full flex flex-col justify-center">
+                <div className="grid gap-2 mb-8" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${questions.length > 30 ? '45px' : '65px'}, 1fr))`, maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+                  {questions.map((_, i) => {
+                    const n = i + 1; const isUsed = used.has(n); const isScan = scanning && scanTile === n; const isSel = !scanning && selectedTile === n;
+                    return (
+                        <div key={n} className={`rounded-xl border flex items-center justify-center aspect-square font-black transition-all relative ${isUsed ? 'bg-slate-900/40 opacity-30 border-transparent' : 'bg-slate-800/40 border-white/5 text-white'}`} style={isScan ? {background:ORANGE, color:'white'} : (isSel ? {background:GREEN, boxShadow:`0 0 30px ${GREEN}`} : {})}>
+                            {n}
+                            {isUsed && <span className="absolute bottom-1 right-1 text-[8px] opacity-60">✓</span>}
+                        </div>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-col items-center mt-8 gap-4">
+                  {!selectedTile && !scanning && <button onClick={pickRandom} className="px-12 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${ORANGE},${RED})`}}>PICK A BOX</button>}
+                  {selectedTile && !scanning && <button onClick={() => { setCurrentQ(questions[selectedTile - 1]); setTimer(60); setTimerRunning(true); setState('question'); }} className="px-12 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${GREEN},#4a9e20)`}}>OPEN BOX #{selectedTile}</button>}
+                  {!scanning && <button onClick={() => { audio.playEnd(); confetti(); setState('endgame'); }} className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-4 hover:text-white transition-all">FINISH SESSION</button>}
+                </div>
+              </div>
+            )}
+            {state === 'question' && (
+              <div className="flex flex-col items-center justify-center h-full anim-pop px-4 text-center overflow-y-auto no-scrollbar">
+                <div className={`text-7xl font-black mb-6 ${timer <= 5 ? 'text-red-500 anim-pulse-red' : 'text-green-500'}`}>{timer}s</div>
+                <div className="glass-strong rounded-[2rem] p-10 max-w-3xl w-full border border-white/5 shadow-2xl">
+                  <p className="text-2xl font-bold leading-relaxed mb-6">{currentQ.q}</p>
+                  {currentQ.options && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{currentQ.options.map((opt, idx) => <div key={idx} className="bg-slate-800/50 p-4 rounded-2xl border border-white/10 flex items-center gap-4"><span className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-black text-white text-sm shrink-0">{String.fromCharCode(65 + idx)}</span><span className="text-lg font-medium text-slate-200 text-left">{opt}</span></div>)}</div>}
+                </div>
+                <button onClick={() => { audio.reveal(); setState('answer'); setTimerRunning(false); }} className="px-12 py-5 rounded-2xl font-black text-white text-2xl shadow-2xl mt-8" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>REVEAL ANSWER</button>
+              </div>
+            )}
+            {state === 'answer' && (
+              <div className="flex flex-col items-center justify-center h-full anim-slide px-4 text-center">
+                <div className="glass-strong rounded-[2rem] p-10 max-w-3xl w-full border border-white/5 shadow-2xl mb-10">
+                  <p className="text-4xl font-black text-white mb-6">{currentQ.a}</p>
+                  <div className="h-2 w-24 bg-green-500 mx-auto rounded-full"></div>
+                </div>
+                <p className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Who gets the +5 Bonus?</p>
+                <div className="flex flex-wrap justify-center gap-4 mb-10">
+                  {teams.map((t, i) => <button key={t.id} onClick={() => setWinners(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id])} className={`px-8 py-4 rounded-2xl font-black text-white border-4 transition-all ${winners.includes(t.id) ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-40'}`} style={{background: (i % 2 === 0 ? BLUE : PURPLE)}}><span className="mr-2">{t.icon}</span><span className="team-name-display inline-block">{t.name}</span></button>)}
+                </div>
+                <button onClick={handleCorrectAnswerConfirmation} className="px-12 py-5 rounded-2xl font-black text-white bg-green-600 shadow-xl hover:scale-105 active:scale-95 transition-all">{winners.length ? 'GET BONUS & DECIDE BOX' : 'NOBODY GOT IT'}</button>
+              </div>
+            )}
+            {state === 'decision' && (
+              <div className="flex flex-wrap gap-6 justify-center items-center h-full px-4 overflow-y-auto no-scrollbar">
+                {winners.map((id, i) => {
+                  const t = teams.find(tm => tm.id === id); const isDone = revealResults.some(r => r.teamId === id); const choice = revealResults.find(r => r.teamId === id)?.choice;
+                  return (
+                    <div key={id} className="glass rounded-3xl p-8 min-w-[280px] text-center border border-white/5 shadow-2xl relative overflow-hidden transition-all duration-300" style={{ background: isDone ? (choice === 'keep' ? 'rgba(102, 191, 57, 0.4)' : 'rgba(255, 51, 85, 0.4)') : 'rgba(30, 41, 59, 0.8)' }}>
+                      <span className="text-4xl block mb-2">{t.icon}</span>
+                      <h3 className="text-xl font-black mb-6 uppercase tracking-widest team-name-display mx-auto" style={{color: (isDone ? 'white' : (i % 2 === 0 ? BLUE : PURPLE))}}>{t.name}</h3>
+                      <div className="flex flex-col gap-4">
+                        <button disabled={isDone} onClick={() => { audio.ding(); const res = [...revealResults, { teamId: id, choice: 'keep', pts: pointPool[Math.floor(Math.random()*pointPool.length)] }]; if(res.length === winners.length) { setRevealResults(res); setTimeout(() => setState('reveal'), 600); } else setRevealResults(res); }} className={`py-5 rounded-2xl font-black text-white text-xl transition-all duration-300 ${choice === 'keep' ? 'bg-white text-green-600 scale-105' : (isDone ? 'opacity-0 h-0 p-0 overflow-hidden' : 'btn-keep hover:scale-105')}`}>{choice === 'keep' ? 'LOCKED IN' : 'KEEP BOX'}</button>
+                        <button disabled={isDone} onClick={() => { audio.ding(); const res = [...revealResults, { teamId: id, choice: 'give', pts: pointPool[Math.floor(Math.random()*pointPool.length)] }]; if(res.length === winners.length) { setRevealResults(res); setTimeout(() => setState('reveal'), 600); } else setRevealResults(res); }} className={`py-5 rounded-2xl font-black text-white text-xl transition-all duration-300 ${choice === 'give' ? 'bg-white text-red-600 scale-105' : (isDone ? 'opacity-0 h-0 p-0 overflow-hidden' : 'btn-give hover:scale-105')}`}>{choice === 'give' ? 'LOCKED IN' : 'GIVE BOX'}</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {state === 'reveal' && (
+              <div className="flex flex-col items-center justify-center h-full anim-pop px-4">
+                <div className="glass-strong rounded-[2.5rem] p-12 max-w-4xl w-full text-center border border-white/10 shadow-2xl">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                     {revealResults.map((r, i) => (
+                       <div key={i} className={`flex flex-col items-center glass p-6 rounded-2xl border border-white/5 ${r.choice === 'keep' ? 'bg-green-900/20' : 'bg-red-900/20'}`}>
+                         <span className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 team-name-display">{teams.find(tm => tm.id === r.teamId).name}</span>
+                         <div className="space-y-1 mb-4">
+                            <div className="text-xs text-green-400 font-bold tracking-widest">PERMANENT BONUS: +5</div>
+                            <div className={`text-5xl font-black ${r.pts >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                Box: {r.pts >= 0 ? '+' : ''}{r.pts}
+                            </div>
+                            <div className="text-[10px] text-slate-400 italic">
+                                {r.choice === 'give' ? 'Opponents receive this!' : 'Team keeps this!'}
+                            </div>
+                         </div>
+                         <div className={`text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full ${r.choice === 'keep' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
+                            DECIDED: {r.choice}
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                   <button onClick={processFinalScores} className="w-full py-6 rounded-2xl font-black text-white text-2xl shadow-xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>APPLY ALL SCORES & CONTINUE ➜</button>
+                </div>
+              </div>
+            )}
+            {state === 'endgame' && (
+              <div className="flex flex-col items-center justify-center h-full px-4 text-center overflow-y-auto no-scrollbar">
+                <h1 className="text-5xl md:text-7xl font-black mb-12 shimmer-text uppercase tracking-tighter w-full px-4">{[...teams].sort((a,b)=>b.score-a.score)[0].name} Wins!</h1>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 w-full max-w-5xl items-end justify-center">
+                    {teams.sort((a,b)=>b.score-a.score).map((t, i) => (
+                        <div key={t.id} className={`bg-slate-900/50 p-6 rounded-3xl border-b-8 shadow-2xl relative transition-all duration-700 ${i === 0 ? 'winner-glow scale-110' : ''}`} style={{borderColor: i===0?GREEN:BLUE, minHeight: i===0?'280px':'220px', order: i === 0 ? 2 : (i === 1 ? 1 : 3)}}>
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 w-12 h-12 rounded-full border-2 border-slate-700 flex items-center justify-center font-black text-slate-400">{i+1}</div>
+                            <span className="text-6xl block mb-4 mt-4">{t.icon}</span>
+                            <div className="font-bold text-slate-300 text-xs uppercase tracking-widest team-name-display mx-auto">{t.name}</div>
+                            <div className={`text-5xl font-black mt-2 ${t.score < 0 ? 'text-red-500' : (t.score > 0 ? 'text-green-500' : 'text-white')}`}><RollingNumber target={t.score} /></div>
+                        </div>
+                    ))}
+                </div>
+                <button onClick={() => { audio.stopEnd(); setState('setup'); }} className="px-16 py-6 rounded-2xl font-black text-white text-2xl bg-slate-800 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 transition-all shadow-xl hover:scale-105 active:scale-95">PLAY AGAIN</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+ </body>
+</html>

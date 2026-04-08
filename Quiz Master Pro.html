@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Master Pro - Tiered Edition</title>
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <!-- SheetJS for Excel Support -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- KaTeX for Math Symbols -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-glow: conic-gradient(from 180deg at 50% 50%, #16abff33 0deg, #0885ff33 55deg, #54d6ff33 120deg, #0071ff33 160deg, transparent 360deg);
+        }
+
+        html, body, #root { 
+            height: 100vh; 
+            width: 100vw; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+        }
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background: radial-gradient(circle at top center, #1e293b 0%, #0f172a 100%); 
+            color: #f1f5f9; 
+        }
+        #root { 
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Advanced Glassmorphism */
+        .glass-strong { 
+            background: rgba(15, 23, 42, 0.75); 
+            backdrop-filter: blur(24px) saturate(180%); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+        
+        .shimmer-text {
+            background: linear-gradient(90deg, #60a5fa, #c084fc, #4ade80, #60a5fa);
+            background-size: 200% 100%;
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
+            background-clip: text; 
+            animation: shimmer 5s linear infinite;
+        }
+        
+        @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        
+        .anim-pop { animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards; }
+        @keyframes pop-in { 0%{transform:scale(0.98);opacity:0} 100%{transform:scale(1);opacity:1} }
+        
+        @keyframes float-up {
+            0% { transform: translateY(0) translateX(-50%); opacity: 0; }
+            20% { transform: translateY(-10px) translateX(-50%); opacity: 1; }
+            80% { transform: translateY(-25px) translateX(-50%); opacity: 1; }
+            100% { transform: translateY(-40px) translateX(-50%); opacity: 0; }
+        }
+        
+        .score-float {
+            position: absolute;
+            pointer-events: none;
+            font-weight: 900;
+            font-size: 1.5rem;
+            animation: float-up 1.5s ease-out forwards;
+            z-index: 100;
+            text-shadow: 0 0 15px rgba(0,0,0,0.8);
+        }
+
+        .winner-glow {
+            box-shadow: 0 0 40px rgba(74, 222, 128, 0.2);
+            border-color: #4ade80 !important;
+        }
+
+        .progress-bar-fill {
+            transition: width 0.8s cubic-bezier(0.65, 0, 0.35, 1);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: rgba(255, 255, 255, 0.1); 
+            border-radius: 10px; 
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        .animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
+        
+        .katex { font-size: 1.1em; }
+
+        .question-text {
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            line-height: 1.2;
+        }
+        
+        .answer-option-text {
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        .correct-answer-display {
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .heading-xl {
+            font-weight: 900;
+            letter-spacing: -0.04em;
+        }
+        
+        .label-sm {
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            font-size: 0.6rem;
+            opacity: 0.5;
+        }
+
+        .btn-premium {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        
+        .timer-badge {
+            font-variant-numeric: tabular-nums;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
+        }
+        
+        /* Layout Fixes for One-Frame visibility */
+        .game-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 1.5rem;
+            flex: 1;
+            min-height: 0; /* Important for flex child to be scrollable or contained */
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const COLORS = {
+            BLUE: '#3b82f6',
+            PURPLE: '#a855f7',
+            GREEN: '#22c55e',
+            ORANGE: '#f97316',
+            RED: '#ef4444',
+            SLATE_900: '#0f172a'
+        };
+
+        const AVATARS = [
+            '🦁', '🐯', '🐺', '🦊', '🦝', '🐱', '🐆', '🐴', 
+            '🦄', '🦓', '🦌', '🐏', '🐑', '🐐', '🐪', '🦒', 
+            '🐘', '🦏', '🦛', '🐭', '🐹', '🐰', '🐿️', '🦔', 
+            '🦇', '🐻', '🐨', '🐼', '🦘', '🦡', '🦃', '🐔', 
+            '🐣', '🐦', '🐧', '🕊️', '🦅', '🦆', '🦢', '🦉', 
+            '🦚', '🦜', '🐸', '🐊', '🐢', '🦎', '🐍', '🐲', 
+            '🦕', '🦖', '🐳', '🐋', '🐬', '🐟', '🐠', '🦈', 
+            '🐙', '🦀', '🦞', '🦐', '🦑'
+        ];
+
+        const TIER_CONFIG = {
+            easy: { label: 'Easy', points: 1, color: '#22c55e', defaultTime: 15 },
+            average: { label: 'Average', points: 3, color: '#3b82f6', defaultTime: 30 },
+            difficult: { label: 'Difficult', points: 5, color: '#ef4444', defaultTime: 75 }
+        };
+
+        const formatMath = (text) => {
+            if (!text) return { __html: "" };
+            const stringText = text.toString();
+            const processed = stringText.replace(/\$(.*?)\$/g, (match, formula) => {
+                try {
+                    return katex.renderToString(formula, { throwOnError: false, displayMode: false });
+                } catch (e) {
+                    return match;
+                }
+            });
+            return { __html: processed };
+        };
+
+        const formatSentence = (str) => {
+            if (!str) return "";
+            return str.toString().trim();
+        };
+
+        class AudioController {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.timerUpAudio = new Audio('TimerUp.mp3');
+                this.timerUpAudio.loop = false; 
+            }
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            setMuted(val) {
+                this.muted = val;
+                this.timerUpAudio.muted = val;
+            }
+            _osc(type, freq, dur, gain = 0.1, delay = 0) {
+                if (!this.ctx || this.muted) return;
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = type;
+                o.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
+                g.gain.setValueAtTime(0, this.ctx.currentTime + delay);
+                g.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + delay + 0.01);
+                g.gain.linearRampToValueAtTime(0, this.ctx.currentTime + delay + dur);
+                o.connect(g);
+                g.connect(this.ctx.destination);
+                o.start(this.ctx.currentTime + delay);
+                o.stop(this.ctx.currentTime + delay + dur);
+            }
+            playClick() { this._osc('sine', 600, 0.05, 0.05); }
+            playTimerUp() {
+                if (this.muted) return;
+                this.timerUpAudio.currentTime = 0;
+                this.timerUpAudio.play().catch(e => console.warn("TimerUp.mp3 not found:", e));
+            }
+            playDing() { 
+                this._osc('sine', 880, 0.2, 0.1); 
+                this._osc('sine', 1320, 0.3, 0.05, 0.05); 
+            }
+            playUndo() { this._osc('sine', 400, 0.1, 0.1); }
+            playCelebration() {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((f, i) => this._osc('sine', f, 0.4, 0.1, i * 0.1));
+            }
+        }
+        const audio = new AudioController();
+
+        const RollingNumber = ({ target }) => {
+            const [display, setDisplay] = useState(target);
+            useEffect(() => {
+                if (display === target) return;
+                const step = target > display ? 1 : -1;
+                const timer = setInterval(() => {
+                    setDisplay(prev => {
+                        if (prev === target) { clearInterval(timer); return prev; }
+                        const diff = target - prev;
+                        const move = step * Math.max(1, Math.ceil(Math.abs(diff) / 5));
+                        if ((step > 0 && prev + move >= target) || (step < 0 && prev + move <= target)) {
+                            clearInterval(timer);
+                            return target;
+                        }
+                        return prev + move;
+                    });
+                }, 30);
+                return () => clearInterval(timer);
+            }, [target]);
+            return <span>{display}</span>;
+        };
+
+        const Setup = ({ onStart }) => {
+            const [participants, setParticipants] = useState([]);
+            const [pName, setPName] = useState('');
+            const [error, setError] = useState(false);
+            const [questionsReady, setQuestionsReady] = useState(null);
+            const [timers, setTimers] = useState({ 
+                easy: TIER_CONFIG.easy.defaultTime, 
+                average: TIER_CONFIG.average.defaultTime, 
+                difficult: TIER_CONFIG.difficult.defaultTime 
+            });
+            const fileRef = useRef(null);
+
+            const addParticipant = () => {
+                const trimmedName = pName.trim();
+                if (trimmedName && participants.length < 15) {
+                    const nameExists = participants.some(p => p.name.toLowerCase() === trimmedName.toLowerCase());
+                    if (nameExists) {
+                        audio.playUndo(); setError(true);
+                        setTimeout(() => setError(false), 500); return;
+                    }
+                    audio.playClick();
+                    const usedAvatars = participants.map(p => p.avatar);
+                    const randomAvatar = AVATARS.filter(a => !usedAvatars.includes(a))[Math.floor(Math.random() * (AVATARS.length - usedAvatars.length))] || AVATARS[0];
+                    setParticipants([...participants, { name: formatSentence(trimmedName), id: Date.now(), score: 0, avatar: randomAvatar }]);
+                    setPName('');
+                }
+            };
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                audio.playClick();
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const data = new Uint8Array(ev.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    const parsed = { easy: [], average: [], difficult: [] };
+                    rows.slice(1).forEach(cols => {
+                        if (!cols || cols.length === 0) return;
+                        const tierTag = (cols[6] || 'easy').toString().toLowerCase();
+                        const q = { question: cols[0], options: cols.slice(1, 5).filter(Boolean), answer: cols[5] || cols[1] };
+                        if (tierTag.includes('difficult')) parsed.difficult.push(q);
+                        else if (tierTag.includes('average')) parsed.average.push(q);
+                        else parsed.easy.push(q);
+                    });
+                    setQuestionsReady(parsed);
+                };
+                reader.readAsArrayBuffer(file);
+            };
+
+            return (
+                <div className="h-full flex items-center justify-center p-6 bg-[#0f172a] overflow-auto custom-scrollbar">
+                    <div className="w-full max-w-4xl glass-strong rounded-[2rem] p-10 anim-pop">
+                        <div className="text-center mb-8">
+                            <h1 className="text-5xl font-black shimmer-text uppercase tracking-tighter mb-1">Quiz Master Pro</h1>
+                            <p className="label-sm">High Fidelity Competition Engine</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                                <h2 className="label-sm text-blue-400">Participants ({participants.length}/15)</h2>
+                                <div className="flex gap-2">
+                                    <input value={pName} onChange={e => setPName(e.target.value)} onKeyPress={e => e.key === 'Enter' && addParticipant()} placeholder="Add Team Name..." className={`flex-1 bg-white/5 border rounded-xl px-4 py-3 text-sm transition-all outline-none ${error ? 'border-red-500 animate-shake' : 'border-white/10 focus:border-blue-500'}`} />
+                                    <button onClick={addParticipant} className="px-6 bg-blue-600 rounded-xl font-bold btn-premium">ADD</button>
+                                </div>
+                                <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
+                                    {participants.map(p => (
+                                        <div key={p.id} className="flex justify-between items-center glass-card p-3 rounded-xl group text-sm">
+                                            <div className="flex items-center gap-3"><span>{p.avatar}</span><span className="font-bold">{p.name}</span></div>
+                                            <button onClick={() => setParticipants(participants.filter(x => x.id !== p.id))} className="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100">✕</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <h2 className="label-sm text-emerald-400">Questions</h2>
+                                    <div onClick={() => fileRef.current.click()} className="py-8 border-2 border-dashed rounded-2xl flex flex-col items-center cursor-pointer transition-all border-white/10 hover:border-blue-500/50 bg-white/5">
+                                        <span className="text-[10px] font-black uppercase text-slate-400">{questionsReady ? '✓ Loaded' : 'Upload Excel/CSV'}</span>
+                                        <input type="file" ref={fileRef} className="hidden" accept=".csv, .xlsx, .xls" onChange={handleFileUpload} />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <h2 className="label-sm text-orange-400">Timers</h2>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {Object.keys(TIER_CONFIG).map(t => (
+                                            <div key={t} className="bg-white/5 p-2 rounded-xl border border-white/5 text-center">
+                                                <p className="label-sm !text-[8px] mb-1" style={{ color: TIER_CONFIG[t].color }}>{t}</p>
+                                                <input type="number" value={timers[t]} onChange={e => setTimers({ ...timers, [t]: parseInt(e.target.value) || 0 })} className="w-full bg-transparent text-center font-black text-lg outline-none" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button onClick={() => { audio.init(); audio.playCelebration(); onStart(participants, questionsReady, timers); }} disabled={participants.length === 0 || !questionsReady} className="w-full mt-8 py-5 rounded-2xl font-black text-xl text-white bg-blue-600 disabled:opacity-10 btn-premium shadow-xl">START</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const Scoreboard = ({ participants, scoreEffects, muted, onToggleMute }) => (
+            <div className="flex items-center justify-between px-6 py-3 glass-strong rounded-2xl mb-4 border border-white/5 shadow-xl shrink-0">
+                <div className="flex flex-wrap gap-x-6 gap-y-2 items-center flex-1 mr-4">
+                    {participants.map(p => (
+                        <div key={p.id} className="flex flex-col items-center relative min-w-[60px] shrink-0">
+                            {scoreEffects[p.id]?.map(eff => <div key={eff.id} className="score-float" style={{ color: eff.pts >= 0 ? COLORS.GREEN : COLORS.RED }}>{eff.pts >= 0 ? `+${eff.pts}` : eff.pts}</div>)}
+                            <div className="text-xl mb-0.5 leading-none">{p.avatar}</div>
+                            <span className="label-sm !text-[8px] opacity-40 mb-0.5 truncate max-w-[60px]">{p.name}</span>
+                            <span className={`font-black text-xl leading-none ${p.score === 0 ? 'text-slate-700' : 'text-white'}`}><RollingNumber target={p.score} /></span>
+                        </div>
+                    ))}
+                </div>
+                <div className="flex items-center gap-3 shrink-0 self-start mt-1">
+                    <button onClick={onToggleMute} className="w-9 h-9 flex items-center justify-center bg-white/5 rounded-xl hover:bg-white/10 text-sm">{muted ? '🔇' : '🔊'}</button>
+                    <div className="text-right hidden sm:block border-l border-white/10 pl-3">
+                        <h2 className="label-sm !text-[8px] shimmer-text">System Live</h2>
+                    </div>
+                </div>
+            </div>
+        );
+
+        function App() {
+            const [gameState, setGameState] = useState('setup'); 
+            const [participants, setParticipants] = useState([]);
+            const [questions, setQuestions] = useState({ easy: [], average: [], difficult: [] });
+            const [timers, setTimers] = useState({});
+            const [currentTier, setCurrentTier] = useState('easy');
+            const [qIndex, setQIndex] = useState(0);
+            const [muted, setMuted] = useState(false);
+            const [isBonus, setIsBonus] = useState(false);
+            const [timeLeft, setTimeLeft] = useState(0);
+            const [timerActive, setTimerActive] = useState(false);
+            const [showAnswer, setShowAnswer] = useState(false);
+            const [scoreEffects, setScoreEffects] = useState({});
+            const [awardedForThisQ, setAwardedForThisQ] = useState([]); 
+            const timerRef = useRef(null);
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (gameState !== 'playing') return;
+                    if (e.code === 'Space') { e.preventDefault(); if (!timerActive && !showAnswer) { audio.playClick(); setTimerActive(true); } }
+                    else if (e.key.toLowerCase() === 'r') { if (!showAnswer) { audio.playTimerUp(); setShowAnswer(true); setTimerActive(false); } }
+                    else if (e.key.toLowerCase() === 'n') handleNext();
+                    else if (e.key.toLowerCase() === 'b') { setIsBonus(!isBonus); audio.playClick(); }
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [gameState, timerActive, showAnswer, isBonus]);
+
+            const startQuiz = (p, q, t) => { setParticipants(p); setQuestions(q); setTimers(t); setGameState('playing'); setQIndex(0); setCurrentTier('easy'); setTimeLeft(t.easy); };
+            const toggleMute = () => { audio.setMuted(!muted); setMuted(!muted); };
+
+            useEffect(() => {
+                if (timerActive && timeLeft > 0) { timerRef.current = setInterval(() => setTimeLeft(t => { if (t <= 1) { audio.playTimerUp(); setTimerActive(false); setShowAnswer(true); return 0; } return t - 1; }), 1000); }
+                else clearInterval(timerRef.current);
+                return () => clearInterval(timerRef.current);
+            }, [timerActive]);
+
+            const awardPoints = (pId) => {
+                const base = TIER_CONFIG[currentTier].points;
+                const pts = isBonus ? base * 2 : base;
+                const effectId = Date.now();
+                if (awardedForThisQ.includes(pId)) {
+                    audio.playUndo();
+                    setParticipants(prev => prev.map(p => p.id === pId ? { ...p, score: p.score - pts } : p));
+                    setAwardedForThisQ(prev => prev.filter(id => id !== pId));
+                    setScoreEffects(prev => ({ ...prev, [pId]: [...(prev[pId] || []), { id: effectId, pts: -pts }] }));
+                } else {
+                    audio.playDing();
+                    setParticipants(prev => prev.map(p => p.id === pId ? { ...p, score: p.score + pts } : p));
+                    setAwardedForThisQ(prev => [...prev, pId]);
+                    setScoreEffects(prev => ({ ...prev, [pId]: [...(prev[pId] || []), { id: effectId, pts }] }));
+                    if (window.confetti) confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 } });
+                }
+                setTimeout(() => setScoreEffects(prev => ({ ...prev, [pId]: (prev[pId] || []).filter(e => e.id !== effectId) })), 1500);
+            };
+
+            const handleNext = () => { audio.playClick(); const tierQs = questions[currentTier] || []; const nextIdx = qIndex + 1; setAwardedForThisQ([]); setIsBonus(false); if (nextIdx < tierQs.length) { setQIndex(nextIdx); setShowAnswer(false); setTimerActive(false); setTimeLeft(timers[currentTier]); } else { audio.playCelebration(); setGameState('leaderboard'); } };
+            const proceedToNextTier = () => { audio.playClick(); let next = currentTier === 'easy' ? 'average' : (currentTier === 'average' ? 'difficult' : null); if (next && questions[next]?.length > 0) { setCurrentTier(next); setQIndex(0); setGameState('playing'); setTimeLeft(timers[next]); setShowAnswer(false); setTimerActive(false); } else { audio.playCelebration(); setGameState('final'); } };
+
+            if (gameState === 'setup') return <Setup onStart={startQuiz} />;
+            const currentQ = (questions[currentTier] || [])[qIndex];
+            const progress = (questions[currentTier] || []).length > 0 ? ((qIndex + 1) / (questions[currentTier] || []).length) * 100 : 0;
+
+            return (
+                <div className="h-full w-full flex flex-col p-4 overflow-hidden">
+                    <Scoreboard participants={participants} scoreEffects={scoreEffects} muted={muted} onToggleMute={toggleMute} />
+                    <div className="game-grid flex-1 overflow-hidden">
+                        {/* Adjudicate Sidebar */}
+                        <div className="glass-strong rounded-2xl p-4 flex flex-col h-full overflow-hidden shadow-2xl border border-white/5">
+                            <div className="flex items-center justify-between mb-4 shrink-0">
+                                <h4 className="label-sm text-slate-500">Adjudicate</h4>
+                                <button onClick={() => setIsBonus(!isBonus)} className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${isBonus ? 'bg-orange-500 border-orange-400 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>Bonus (B)</button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
+                                {participants.map(p => {
+                                    const isAwarded = awardedForThisQ.includes(p.id);
+                                    return (
+                                        <button key={p.id} onClick={() => awardPoints(p.id)} className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-between group ${isAwarded ? 'bg-emerald-600 border-emerald-400 text-white' : 'glass-card text-slate-400 border-white/5'}`}>
+                                            <div className="flex items-center gap-2"><span>{p.avatar}</span><span className="truncate max-w-[100px]">{p.name}</span></div>
+                                            {isAwarded ? <span className="text-[10px]">✓</span> : <span className="opacity-0 group-hover:opacity-40">+</span>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-white/5 shrink-0 text-center">
+                                <p className="label-sm !text-[8px] text-slate-600">REWARD: {isBonus ? (TIER_CONFIG[currentTier].points * 2) : TIER_CONFIG[currentTier].points} PTS</p>
+                            </div>
+                        </div>
+
+                        {/* Question View */}
+                        <div className="flex flex-col h-full overflow-hidden">
+                            {gameState === 'playing' && currentQ ? (
+                                <div className="glass-strong rounded-3xl relative border border-white/5 shadow-2xl overflow-hidden flex flex-col h-full anim-pop">
+                                    <div className="h-1 w-full bg-black/40"><div className="h-full progress-bar-fill bg-current" style={{ width: `${progress}%`, color: TIER_CONFIG[currentTier].color }}></div></div>
+                                    <div className="p-6 flex-1 flex flex-col min-h-0">
+                                        <div className="flex justify-between items-start mb-4 shrink-0">
+                                            <div className="flex gap-2 items-center">
+                                                <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase text-white" style={{ background: TIER_CONFIG[currentTier].color }}>{currentTier} • Q{qIndex + 1}</span>
+                                                {isBonus && <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase text-white bg-orange-500 animate-pulse">⭐ BOUNTY</span>}
+                                            </div>
+                                            <div className={`w-14 h-14 rounded-full border-4 flex items-center justify-center font-black text-xl italic timer-badge shrink-0 ${timeLeft <= 5 && timeLeft > 0 ? 'border-red-500 text-red-500 animate-pulse bg-red-500/10' : 'border-white/10 text-white bg-white/5'}`}>{timeLeft}</div>
+                                        </div>
+                                        <h3 className="text-xl md:text-2xl question-text text-white mb-6 shrink-0" dangerouslySetInnerHTML={formatMath(currentQ.question)}></h3>
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 mb-4">
+                                            {currentQ.options?.length > 0 ? currentQ.options.map((opt, idx) => (
+                                                <div key={idx} className="glass-card p-3 rounded-xl flex items-center gap-3 border border-white/5">
+                                                    <span className="w-8 h-8 rounded-lg bg-blue-600 flex-shrink-0 flex items-center justify-center font-black text-white text-xs">{String.fromCharCode(65 + idx)}</span>
+                                                    <span className="text-sm answer-option-text text-slate-200" dangerouslySetInnerHTML={formatMath(opt)}></span>
+                                                </div>
+                                            )) : <div className="py-10 border-2 border-dashed border-white/5 rounded-2xl text-center label-sm opacity-20">IDENTIFICATION</div>}
+                                        </div>
+                                        <div className="shrink-0 space-y-4 border-t border-white/5 pt-4">
+                                            {showAnswer && (
+                                                <div className="anim-pop bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20">
+                                                    <p className="label-sm !text-[8px] text-emerald-400/60 mb-1">SYSTEM ANSWER</p>
+                                                    <p className="text-xl font-bold correct-answer-display text-emerald-400" dangerouslySetInnerHTML={formatMath(formatSentence(currentQ.answer))}></p>
+                                                </div>
+                                            )}
+                                            <div className="flex gap-2">
+                                                <button onClick={() => { audio.playClick(); setTimerActive(true); }} disabled={timerActive || showAnswer} className="flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest bg-emerald-600 text-white disabled:opacity-10 btn-premium">IGNITE (SPACE)</button>
+                                                <button onClick={() => { audio.playTimerUp(); setShowAnswer(true); setTimerActive(false); }} className="flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white/5 border border-white/10 text-white btn-premium">REVEAL (R)</button>
+                                                <button onClick={handleNext} className="flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest bg-blue-600 text-white btn-premium">PROCEED (N)</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : gameState === 'leaderboard' ? (
+                                <div className="glass-strong rounded-3xl p-8 h-full flex flex-col items-center justify-center text-center">
+                                    <h2 className="text-4xl font-black text-white mb-2 uppercase">{currentTier} COMPLETE</h2>
+                                    <div className="space-y-2 w-full max-w-sm mb-8 overflow-y-auto custom-scrollbar max-h-[300px]">
+                                        {[...participants].sort((a,b) => b.score - a.score).map((p, i) => (
+                                            <div key={p.id} className="flex justify-between p-3 glass-card rounded-xl border border-white/5">
+                                                <div className="flex gap-3">
+                                                    <span className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px] ${i === 0 ? 'bg-yellow-500 text-white' : 'bg-white/5 text-slate-500'}`}>{i+1}</span>
+                                                    <span className="font-bold text-slate-200">{p.name}</span>
+                                                </div>
+                                                <span className="font-black text-blue-400">{p.score}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button onClick={proceedToNextTier} className="px-12 py-4 rounded-xl font-black text-white btn-premium bg-blue-600 shadow-xl">{currentTier === 'difficult' ? 'FINISH' : 'NEXT ROUND'}</button>
+                                </div>
+                            ) : gameState === 'final' ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center p-4">
+                                    {(() => {
+                                        const sorted = [...participants].sort((a,b) => b.score - a.score);
+                                        const top = sorted[0]?.score || 0;
+                                        const winners = sorted.filter(p => p.score === top);
+                                        return top === 0 ? <h1 className="text-5xl font-black shimmer-text mb-12">INSUFFICIENT DATA</h1> : (
+                                            <>
+                                                <h1 className="text-4xl md:text-6xl font-black shimmer-text mb-12 uppercase">{winners.length > 1 ? `TIE: ${winners.map(w => w.name).join(' & ')}` : `${winners[0].name} DOMINATES`}</h1>
+                                                <div className="flex gap-4 items-end mb-12">
+                                                    {sorted.slice(0, 3).map((t, i) => (
+                                                        <div key={t.id} className={`glass-strong p-6 rounded-3xl border-b-8 shadow-2xl flex flex-col items-center ${i === 0 ? 'scale-110 border-emerald-500 winner-glow order-2 h-64' : (i===1 ? 'order-1 h-52' : 'order-3 h-48')} border-blue-600/50`}>
+                                                            <span className="text-4xl mb-4">{t.avatar}</span>
+                                                            <div className="label-sm !text-[8px] mb-2">{t.name}</div>
+                                                            <div className="text-4xl font-black text-white"><RollingNumber target={t.score} /></div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                    <button onClick={() => setGameState('setup')} className="px-12 py-5 rounded-2xl font-black text-white bg-white/5 border border-white/10 btn-premium">NEW GAME</button>
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
