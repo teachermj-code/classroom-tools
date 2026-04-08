@@ -11,7 +11,7 @@
         .glass { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
         .shimmer { background: linear-gradient(90deg, #60a5fa, #c084fc, #4ade80, #60a5fa); background-size: 200% 100%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shimmer 5s linear infinite; }
         @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-        .instruction-card { border-left: 4px solid #3b82f6; padding-left: 1.5rem; margin-bottom: 2rem; }
+        .modal { transition: opacity 0.25s ease; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-6 lg:p-12 overflow-x-hidden">
@@ -21,84 +21,89 @@
         <p class="text-slate-400 font-bold tracking-[0.3em] uppercase text-[10px]">Mathematics Classroom Innovations</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl w-full mb-20">
-        <a href="mind-game.html" class="glass p-10 rounded-[2.5rem] hover:bg-white/10 transition-all group border-b-8 border-blue-500 shadow-2xl">
-            <div class="text-5xl mb-6 group-hover:rotate-12 transition-transform">🧠</div>
-            <h2 class="text-2xl font-black mb-3 uppercase italic">Mind Your Decisions</h2>
-            <p class="text-slate-400 text-sm leading-relaxed">A high-stakes review game where students decide to "Keep" or "Give" mystery boxes. Perfect for energizing the class during drill lessons.</p>
-        </a>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl w-full mb-12">
+        
+        <div class="flex flex-col">
+            <a href="mind-game.html" class="glass p-10 rounded-t-[2.5rem] hover:bg-white/10 transition-all group border-b-4 border-blue-500 shadow-2xl">
+                <div class="text-5xl mb-6 group-hover:rotate-12 transition-transform">🧠</div>
+                <h2 class="text-2xl font-black mb-3 uppercase italic">Mind Your Decisions</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">Strategic review game where correct answers grant the power to keep or give mystery points.</p>
+            </a>
+            <button onclick="toggleModal('modalMind')" class="bg-blue-600/20 hover:bg-blue-600/40 py-3 rounded-b-[2.5rem] text-[10px] font-black uppercase tracking-widest text-blue-400 transition-all">
+                ⓘ About & How to Play
+            </button>
+        </div>
 
-        <a href="quiz-master.html" class="glass p-10 rounded-[2.5rem] hover:bg-white/10 transition-all group border-b-8 border-emerald-500 shadow-2xl">
-            <div class="text-5xl mb-6 group-hover:scale-110 transition-transform">🏆</div>
-            <h2 class="text-2xl font-black mb-3 uppercase italic">Quiz Master Pro</h2>
-            <p class="text-slate-400 text-sm leading-relaxed">A tiered competition engine (Easy, Average, Difficult) with full KaTeX support for complex Math equations and CSV bulk-loading.</p>
-        </a>
+        <div class="flex flex-col">
+            <a href="quiz-master.html" class="glass p-10 rounded-t-[2.5rem] hover:bg-white/10 transition-all group border-b-4 border-emerald-500 shadow-2xl">
+                <div class="text-5xl mb-6 group-hover:scale-110 transition-transform">🏆</div>
+                <h2 class="text-2xl font-black mb-3 uppercase italic">Quiz Master Pro</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">Tiered competition engine with LaTeX support for complex Math equations and bulk CSV loading.</p>
+            </a>
+            <button onclick="toggleModal('modalQuiz')" class="bg-emerald-600/20 hover:bg-emerald-600/40 py-3 rounded-b-[2.5rem] text-[10px] font-black uppercase tracking-widest text-emerald-400 transition-all">
+                ⓘ About & How to Play
+            </button>
+        </div>
     </div>
 
-    <div class="max-w-5xl w-full glass rounded-[3rem] p-10 lg:p-16 mb-20 border border-white/5 shadow-inner">
-        <div class="text-center mb-12">
-            <h2 class="text-3xl font-black uppercase tracking-tight mb-2">Teacher's User Manual</h2>
-            <div class="h-1 w-20 bg-blue-500 mx-auto rounded-full"></div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
-            
-            <div class="instruction-card border-blue-500">
-                <h3 class="text-xl font-black text-blue-400 uppercase mb-4">🧠 How to play: Mind Your Decisions</h3>
-                <ul class="space-y-4 text-slate-300 text-sm leading-relaxed">
-                    <li class="flex gap-3"><span class="font-bold text-blue-500">1.</span> <b>Setup:</b> Click the Editor to paste your questions or upload a CSV. Add your class groups (Max 6).</li>
-                    <li class="flex gap-3"><span class="font-bold text-blue-500">2.</span> <b>The Box:</b> Select a numbered box to reveal a question. Students have 60 seconds to solve it.</li>
-                    <li class="flex gap-3"><span class="font-bold text-blue-500">3.</span> <b>The Decision:</b> If a group gets it right, they receive a permanent +5 points. Then, they must choose:
-                        <br>• <b>KEEP:</b> The mystery points in the box are added to <i>their</i> score.
-                        <br>• <b>GIVE:</b> The mystery points are added to <i>all other</i> teams instead.</li>
-                    <li class="flex gap-3"><span class="font-bold text-blue-500">4.</span> <b>Strategy:</b> Boxes can contain negative points! Giving away a negative box reduces opponents' scores.</li>
-                </ul>
-            </div>
-
-            <div class="instruction-card border-emerald-500">
-                <h3 class="text-xl font-black text-emerald-400 uppercase mb-4">🏆 How to play: Quiz Master Pro</h3>
-                <ul class="space-y-4 text-slate-300 text-sm leading-relaxed">
-                    <li class="flex gap-3"><span class="font-bold text-emerald-500">1.</span> <b>Tiered System:</b> Prepare questions for three levels: Easy (1pt), Average (3pts), and Difficult (5pts).</li>
-                    <li class="flex gap-3"><span class="font-bold text-emerald-500">2.</span> <b>Shortcuts:</b> Use <b>Spacebar</b> to start the countdown, <b>'R'</b> to reveal the answer, and <b>'N'</b> for the next question.</li>
-                    <li class="flex gap-3"><span class="font-bold text-emerald-500">3.</span> <b>Bounty Mode:</b> Press <b>'B'</b> to toggle Bonus Points (doubles the score for that round).</li>
-                    <li class="flex gap-3"><span class="font-bold text-emerald-500">4.</span> <b>Math Support:</b> For fractions or roots, use LaTeX code inside $ symbols (e.g., $\frac{1}{2}$).</li>
-                </ul>
-            </div>
-
-        </div>
-
-        <div class="mt-16 bg-white/5 rounded-3xl p-8 border border-white/10">
-            <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                📂 CSV Preparation Guide
-            </h4>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-[11px] text-slate-400 uppercase tracking-wider">
-                    <thead>
-                        <tr class="border-b border-white/10">
-                            <th class="pb-3 px-2">Question (Col A)</th>
-                            <th class="pb-3 px-2">Opt A-D (Col B-E)</th>
-                            <th class="pb-3 px-2">Answer (Col F)</th>
-                            <th class="pb-3 px-2">Tier (Col G)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="py-4 px-2 text-slate-200">What is $2+2$?</td>
-                            <td class="py-4 px-2 italic">4, 5, 6, 7</td>
-                            <td class="py-4 px-2 text-emerald-400">4</td>
-                            <td class="py-4 px-2 text-blue-400">Easy</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="mt-6 text-[10px] text-slate-500 text-center font-medium italic">Note: Keep columns B-E blank for "Identification" style questions.</p>
-        </div>
+    <div class="flex flex-col items-center gap-4 mb-20">
+        <a href="quiz_template.csv" download class="glass px-8 py-3 rounded-full text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 border-white/10 transition-all text-slate-300">
+            📥 Download Universal CSV Template
+        </a>
     </div>
 
     <footer class="text-center pb-12">
         <p class="text-[10px] text-slate-600 font-bold tracking-[0.4em] uppercase mb-2">Designed for the Philippine Department of Education</p>
-        <p class="text-xs text-slate-400">Created with ❤️ by <span class="text-blue-500 font-black">Teacher MJ</span></p>
+        <p class="text-xs text-slate-400 font-medium">Contextualized ICT Innovation by <span class="text-blue-500 font-black">Teacher MJ</span></p>
     </footer>
 
+    <div id="modalMind" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-black shimmer uppercase">Mind Your Decisions</h2>
+                <button onclick="toggleModal('modalMind')" class="text-slate-500 hover:text-white text-2xl">✕</button>
+            </div>
+            <div class="space-y-6 text-sm leading-relaxed text-slate-300">
+                <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A high-engagement review tool designed for any subject. It eliminates "spectator downtime" by requiring 100% participation in every round.</p>
+                <div class="space-y-4">
+                    <p><b>1. Universal Challenge:</b> All groups must solve the question within the 60-second timer. When time is up, everyone reveals their answer simultaneously.</p>
+                    <p><b>2. Eligibility:</b> Only groups with the correct answer receive a <b>+5 Accuracy Bonus</b> and earn the right to enter the Decision Phase.</p>
+                    <p><b>3. Keep or Give:</b> Eligible groups decide to either <b>Keep</b> the mystery points (could be positive or negative!) or <b>Give</b> them to all ineligible teams.</p>
+                </div>
+                <div class="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs italic">
+                    Note: Leave columns B-E empty in the CSV for Identification mode.
+                </div>
+            </div>
+            <button onclick="toggleModal('modalMind')" class="w-full mt-10 py-4 bg-blue-600 rounded-2xl font-black uppercase text-xs tracking-widest">Close Guide</button>
+        </div>
+    </div>
+
+    <div id="modalQuiz" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-black shimmer uppercase tracking-tighter">Quiz Master Pro</h2>
+                <button onclick="toggleModal('modalQuiz')" class="text-slate-500 hover:text-white text-2xl">✕</button>
+            </div>
+            <div class="space-y-6 text-sm leading-relaxed text-slate-300">
+                <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A formal tiered competition engine designed for Summative Assessments and Quiz Bees.</p>
+                <div class="space-y-4 border-l-2 border-emerald-500 pl-6">
+                    <p><b>1. Tiered Levels:</b> Organize questions into Easy (1pt), Average (3pts), and Difficult (5pts) categories using the CSV Tier column.</p>
+                    <p><b>2. Bounty Mode:</b> Press <b>'B'</b> to toggle Bounty Mode, doubling the score for the current question to increase stakes.</p>
+                    <p><b>3. Math Fidelity:</b> Fully integrated with KaTeX. Use `$` symbols in your CSV to render professional fractions, roots, and equations.</p>
+                </div>
+                <div class="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs italic">
+                    Keyboard Shortcuts: [Space] Start Timer | [R] Reveal Answer | [N] Next Question.
+                </div>
+            </div>
+            <button onclick="toggleModal('modalQuiz')" class="w-full mt-10 py-4 bg-emerald-600 rounded-2xl font-black uppercase text-xs tracking-widest">Close Guide</button>
+        </div>
+    </div>
+
+    <script>
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>
