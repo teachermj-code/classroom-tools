@@ -82,7 +82,6 @@ The complete amount represented in a pie chart, usually equal to 100%. | | | | |
 A solid figure with two circular bases and a curved surface. | | | | | Cylinder
 A specific part or slice of a circle in a pie chart. | | | | | Sector`;
 
-// Helper function to format math superscripts
 const formatMath = (text) => {
   if (!text) return "";
   const str = String(text);
@@ -162,7 +161,7 @@ function Setup({ onStart }) {
   const fileRef = useRef(null);
 
   const downloadCSV = () => {
-    const content = "Question, Option A, Option B, Option C, Option D, Correct Answer\nWhat is 5+5?, 8, 10, 12, 15, 10\nIdentification Question, , , , , AnswerText";
+    const content = "Question, Option A, Option B, Option C, Option D, Correct Answer\nWhat is 5+5?, 8, 10, 12, 15, 10";
     const blob = new Blob([content], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'quiz_template.csv'; a.click();
@@ -171,10 +170,8 @@ function Setup({ onStart }) {
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     const extension = file.name.split('.').pop().toLowerCase();
-
     if (extension === 'xlsx' || extension === 'xls') {
       reader.onload = (ev) => {
         try {
@@ -185,9 +182,7 @@ function Setup({ onStart }) {
           setQsIn(csv);
           setFileStatus(`Excel file "${file.name}" loaded!`);
           setTimeout(() => setFileStatus(''), 3000);
-        } catch (err) {
-          setFileStatus('Error reading Excel file.');
-        }
+        } catch (err) { setFileStatus('Error reading Excel file.'); }
       };
       reader.readAsArrayBuffer(file);
     } else {
@@ -205,9 +200,7 @@ function Setup({ onStart }) {
     return lines.map((line, index) => {
         const delimiter = line.includes('|') ? '|' : ',';
         const cols = line.split(delimiter).map(c => c.trim());
-        if (index === 0 && (cols[0].toLowerCase().includes('question') || cols[cols.length-1].toLowerCase().includes('answer'))) {
-            return null;
-        }
+        if (index === 0 && (cols[0].toLowerCase().includes('question') || cols[cols.length-1].toLowerCase().includes('answer'))) return null;
         if (cols.length >= 6) {
             const q = formatMath(cols[0]);
             const opts = cols.slice(1, 5).filter(o => o !== "").map(formatMath);
@@ -249,7 +242,7 @@ function Setup({ onStart }) {
             {fileStatus && <p className="text-green-400 text-[10px] font-bold mb-2">{fileStatus}</p>}
             {showEditor && (
                 <div className="space-y-2 anim-pop">
-                    <textarea value={qsIn} onChange={e => setQsIn(e.target.value)} className="w-full h-40 bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-slate-400 focus:border-blue-500 outline-none" placeholder="Paste CSV or type here... (Column A: Q, B-E: Options, F: Ans)"/>
+                    <textarea value={qsIn} onChange={e => setQsIn(e.target.value)} className="w-full h-40 bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-slate-400 focus:border-blue-500 outline-none" placeholder="Paste CSV or type here..."/>
                 </div>
             )}
           </div>
@@ -327,6 +320,11 @@ function App() {
   const triggerScoreEffect = (teamId, pts) => {
     const id = Date.now() + Math.random();
     setScoreEffects(prev => ({ ...prev, [teamId]: [...(prev[teamId] || []), { id, pts }] }));
+    
+    // Trigger color-coded particles
+    const colors = pts >= 0 ? [GREEN, BLUE] : [RED, ORANGE];
+    confetti({ particleCount: 20, spread: 60, origin: { y: 0.6 }, colors });
+
     setTimeout(() => { setScoreEffects(prev => ({ ...prev, [teamId]: (prev[teamId] || []).filter(e => e.id !== id) })); }, 1500);
   };
 
@@ -376,6 +374,54 @@ function App() {
     confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 }, colors: [GREEN, BLUE, PURPLE] });
     setState('decision');
   };
+
+  const printCertificate = () => {
+    const sorted = [...teams].sort((a,b) => b.score - a.score);
+    const winner = sorted[0];
+    const win = window.open('', '_blank');
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    
+    win.document.write(`
+      <html>
+        <head>
+          <title>Victory Certificate - ${winner.name}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;900&display=swap" rel="stylesheet">
+          <style>
+            body { font-family: 'Outfit', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: white; color: black; }
+            .cert { border: 20px double #334155; padding: 60px; text-align: center; max-width: 800px; width: 90%; }
+            .school { text-transform: uppercase; font-weight: bold; letter-spacing: 0.2em; color: #64748b; margin-bottom: 20px; }
+            h1 { font-size: 60px; margin: 0; text-transform: uppercase; font-weight: 900; }
+            p { font-size: 24px; font-style: italic; color: #475569; margin: 20px 0; }
+            .winner-name { font-size: 50px; font-weight: 900; color: #2563eb; margin: 30px 0; }
+            .game-title { font-size: 32px; font-weight: 900; text-transform: uppercase; color: #0f172a; margin-top: 40px; }
+            .footer { margin-top: 60px; display: flex; justify-content: space-between; align-items: flex-end; }
+            .sig { border-top: 2px solid #cbd5e1; padding-top: 10px; width: 250px; font-weight: bold; }
+            .date { color: #94a3b8; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="cert">
+            <div class="school">Center for Brighter Beginnings</div>
+            <h1>Certificate of Victory</h1>
+            <p>This award is proudly presented to</p>
+            <div class="winner-name">${winner.icon} ${winner.name}</div>
+            <p>for achieving the highest score of <strong>${winner.score}</strong> in</p>
+            <div class="game-title">Mind Your Decisions!</div>
+            <div class="footer">
+              <div class="sig">Teacher MJ</div>
+              <div class="date">${today}</div>
+            </div>
+          </div>
+          <script>
+            setTimeout(() => { window.print(); window.close(); }, 500);
+          <\/script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  };
+
+  const finalWinner = [...teams].sort((a,b) => b.score - a.score)[0];
 
   return (
     <div className="h-full w-full flex flex-col p-4 bg-[#0f172a] select-none no-scrollbar overflow-hidden">
@@ -453,16 +499,9 @@ function App() {
                          <span className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 team-name-display">{teams.find(tm => tm.id === r.teamId).name}</span>
                          <div className="space-y-1 mb-4">
                             <div className="text-xs text-green-400 font-bold tracking-widest">PERMANENT BONUS: +5</div>
-                            <div className={`text-5xl font-black ${r.pts >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                Box: {r.pts >= 0 ? '+' : ''}{r.pts}
-                            </div>
-                            <div className="text-[10px] text-slate-400 italic">
-                                {r.choice === 'give' ? 'Opponents receive this!' : 'Team keeps this!'}
-                            </div>
+                            <div className={`text-5xl font-black ${r.pts >= 0 ? 'text-green-500' : 'text-red-500'}`}>Box: {r.pts >= 0 ? '+' : ''}{r.pts}</div>
                          </div>
-                         <div className={`text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full ${r.choice === 'keep' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-                            DECIDED: {r.choice}
-                         </div>
+                         <div className={`text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full ${r.choice === 'keep' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>DECIDED: {r.choice}</div>
                        </div>
                      ))}
                    </div>
@@ -472,7 +511,7 @@ function App() {
             )}
             {state === 'endgame' && (
               <div className="flex flex-col items-center justify-center h-full px-4 text-center overflow-y-auto no-scrollbar">
-                <h1 className="text-5xl md:text-7xl font-black mb-12 shimmer-text uppercase tracking-tighter w-full px-4">{[...teams].sort((a,b)=>b.score-a.score)[0].name} Wins!</h1>
+                <h1 className="text-5xl md:text-7xl font-black mb-12 shimmer-text uppercase tracking-tighter w-full px-4">{finalWinner.name} Wins!</h1>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 w-full max-w-5xl items-end justify-center">
                     {teams.sort((a,b)=>b.score-a.score).map((t, i) => (
                         <div key={t.id} className={`bg-slate-900/50 p-6 rounded-3xl border-b-8 shadow-2xl relative transition-all duration-700 ${i === 0 ? 'winner-glow scale-110' : ''}`} style={{borderColor: i===0?GREEN:BLUE, minHeight: i===0?'280px':'220px', order: i === 0 ? 2 : (i === 1 ? 1 : 3)}}>
@@ -483,7 +522,10 @@ function App() {
                         </div>
                     ))}
                 </div>
-                <button onClick={() => { audio.stopEnd(); setState('setup'); }} className="px-16 py-6 rounded-2xl font-black text-white text-2xl bg-slate-800 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 transition-all shadow-xl hover:scale-105 active:scale-95">PLAY AGAIN</button>
+                <div className="flex flex-wrap gap-4 justify-center">
+                  <button onClick={printCertificate} className="px-16 py-6 rounded-2xl font-black text-white text-2xl bg-blue-600 shadow-xl hover:scale-105 active:scale-95 transition-all">PRINT CERTIFICATE</button>
+                  <button onClick={() => { audio.stopEnd(); setState('setup'); }} className="px-16 py-6 rounded-2xl font-black text-white text-2xl bg-slate-800 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 transition-all shadow-xl hover:scale-105 active:scale-95">PLAY AGAIN</button>
+                </div>
               </div>
             )}
           </div>
