@@ -59,10 +59,6 @@
       box-shadow: 0 0 50px rgba(102, 191, 57, 0.3);
       border-color: #66bf39 !important;
     }
-
-    .geometry-container svg {
-      filter: drop-shadow(0 0 15px rgba(255,255,255,0.1));
-    }
   </style>
  </head>
  <body>
@@ -138,88 +134,6 @@ class AudioController {
   stopEnd() { this.celebMusic.pause(); this.celebMusic.currentTime = 0; }
 }
 const audio = new AudioController();
-
-// --- SMART GEOMETRY COMPONENT ---
-function GeometryDisplay({ questionText }) {
-  const text = questionText.toLowerCase();
-  const extractDimensions = () => {
-    const matches = questionText.match(/\d+(\.\d+)?\s*(cm|m|km|units|unit|in|ft)/gi) || [];
-    return matches.map(m => formatMath(m.trim()));
-  };
-
-  const dims = extractDimensions();
-  const color = "rgba(255,255,255,0.8)";
-  const strokeColor = "#45a3e5";
-
-  if (text.includes("cylinder")) {
-    return (
-      <div className="geometry-container mb-6 flex justify-center scale-110">
-        <svg width="120" height="150" viewBox="0 0 120 150">
-          <ellipse cx="60" cy="30" rx="40" ry="15" fill="none" stroke={strokeColor} strokeWidth="3" />
-          <path d="M20 30 V120 A40 15 0 0 0 100 120 V30" fill="none" stroke={strokeColor} strokeWidth="3" />
-          <ellipse cx="60" cy="120" rx="40" ry="15" fill="none" stroke={strokeColor} strokeWidth="3" strokeDasharray="4 4" />
-          <text x="60" y="35" fontSize="11" fill={color} textAnchor="middle">r = {dims[0] || '?'}</text>
-          <text x="110" y="80" fontSize="11" fill={color} textAnchor="middle" transform="rotate(90, 110, 80)">h = {dims[1] || '?'}</text>
-        </svg>
-      </div>
-    );
-  }
-
-  if (text.includes("cube") || text.includes("rectangular prism") || text.includes("box")) {
-    return (
-      <div className="geometry-container mb-6 flex justify-center scale-110">
-        <svg width="150" height="150" viewBox="0 0 150 150">
-          <rect x="20" y="50" width="80" height="70" fill="none" stroke={strokeColor} strokeWidth="3" />
-          <path d="M20 50 L50 20 L130 20 L100 50 Z" fill="none" stroke={strokeColor} strokeWidth="3" />
-          <path d="M100 50 L130 20 L130 90 L100 120 Z" fill="none" stroke={strokeColor} strokeWidth="3" />
-          <text x="60" y="140" fontSize="11" fill={color} textAnchor="middle">L: {dims[0] || '?'}</text>
-          <text x="145" y="60" fontSize="11" fill={color} textAnchor="middle" transform="rotate(90, 145, 60)">W: {dims[1] || dims[0] || '?'}</text>
-          <text x="10" y="85" fontSize="11" fill={color} textAnchor="middle" transform="rotate(-90, 10, 85)">H: {dims[2] || dims[0] || '?'}</text>
-        </svg>
-      </div>
-    );
-  }
-
-  if (text.includes("rectangle") || text.includes("square")) {
-    const isSquare = text.includes("square");
-    return (
-      <div className="geometry-container mb-6 flex justify-center">
-        <svg width="150" height="100" viewBox="0 0 150 100">
-          <rect x="25" y="20" width={isSquare ? "50" : "100"} height="50" fill="none" stroke={strokeColor} strokeWidth="3" />
-          <text x="75" y="90" fontSize="11" fill={color} textAnchor="middle">{dims[0] || '?'}</text>
-          {!isSquare && <text x="140" y="45" fontSize="11" fill={color} textAnchor="middle" transform="rotate(90, 140, 45)">{dims[1] || '?'}</text>}
-        </svg>
-      </div>
-    );
-  }
-
-  if (text.includes("triangle")) {
-    return (
-      <div className="geometry-container mb-6 flex justify-center">
-        <svg width="150" height="100" viewBox="0 0 150 100">
-          <path d="M20 80 L130 80 L75 20 Z" fill="none" stroke={strokeColor} strokeWidth="3" />
-          <path d="M75 20 V80" fill="none" stroke={strokeColor} strokeWidth="2" strokeDasharray="4 4" />
-          <text x="75" y="95" fontSize="11" fill={color} textAnchor="middle">b: {dims[0] || '?'}</text>
-          <text x="85" y="55" fontSize="11" fill={color} textAnchor="middle">h: {dims[1] || '?'}</text>
-        </svg>
-      </div>
-    );
-  }
-
-  if (text.includes("cone")) {
-    return (
-      <div className="geometry-container mb-6 flex justify-center">
-        <svg width="120" height="150" viewBox="0 0 120 150">
-          <ellipse cx="60" cy="120" rx="40" ry="15" fill="none" stroke={strokeColor} strokeWidth="3" />
-          <path d="M20 120 L60 20 L100 120" fill="none" stroke={strokeColor} strokeWidth="3" />
-          <text x="60" y="130" fontSize="11" fill={color} textAnchor="middle">r: {dims[0] || '?'}</text>
-          <text x="75" y="70" fontSize="11" fill={color} textAnchor="middle">h: {dims[1] || '?'}</text>
-        </svg>
-      </div>
-    );
-  }
-  return null;
-}
 
 function RollingNumber({ target }) {
   const [display, setDisplay] = useState(target);
@@ -494,7 +408,6 @@ function App() {
               <div className="flex flex-col items-center justify-center h-full anim-pop px-4 text-center overflow-y-auto no-scrollbar">
                 <div className={`text-7xl font-black mb-6 ${timer <= 5 ? 'text-red-500 anim-pulse-red' : 'text-green-500'}`}>{timer}s</div>
                 <div className="glass-strong rounded-[2rem] p-10 max-w-3xl w-full border border-white/5 shadow-2xl">
-                  <GeometryDisplay questionText={currentQ.q} />
                   <p className="text-2xl font-bold leading-relaxed mb-6">{currentQ.q}</p>
                   {currentQ.options && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{currentQ.options.map((opt, idx) => <div key={idx} className="bg-slate-800/50 p-4 rounded-2xl border border-white/10 flex items-center gap-4"><span className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-black text-white text-sm shrink-0">{String.fromCharCode(65 + idx)}</span><span className="text-lg font-medium text-slate-200 text-left">{opt}</span></div>)}</div>}
                 </div>
