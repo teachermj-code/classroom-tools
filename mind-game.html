@@ -59,6 +59,25 @@
       box-shadow: 0 0 50px rgba(102, 191, 57, 0.3);
       border-color: #66bf39 !important;
     }
+
+    .log-entry { animation: slide-in-left 0.3s ease-out forwards; }
+    @keyframes slide-in-left { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    .mystery-tile {
+        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .mystery-tile:hover:not(.used) {
+        transform: translateY(-4px) scale(1.05);
+        border-color: rgba(69, 163, 229, 0.5);
+        box-shadow: 0 0 25px rgba(69, 163, 229, 0.3);
+    }
+    .mystery-tile.used {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border-color: transparent !important;
+        opacity: 0.15;
+        box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+        cursor: default;
+    }
   </style>
  </head>
  <body>
@@ -68,8 +87,6 @@ const { useState, useEffect, useRef } = React;
 
 const BLUE = '#45a3e5'; const PURPLE = '#864cbf'; const GREEN = '#66bf39'; const ORANGE = '#eb670f'; const RED = '#ff3355';
 const ANIMAL_ICONS = ["🦁", "🐼", "🐸", "🦊", "🐨", "🐯", "🐵", "🐧", "🐷", "🦋", "🦖", "🦄"];
-
-const defaultPoints = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5];
 
 const defaultQuestionsStr = `The total measure of all the outer faces of a solid figure. | | | | | Surface Area
 A graph that shows parts of a whole using sections of a circle. | | | | | Pie chart
@@ -82,13 +99,28 @@ The complete amount represented in a pie chart, usually equal to 100%. | | | | |
 A solid figure with two circular bases and a curved surface. | | | | | Cylinder
 A specific part or slice of a circle in a pie chart. | | | | | Sector`;
 
+// --- Enhanced Math Rendering ---
 const formatMath = (text) => {
   if (!text) return "";
-  const str = String(text);
+  let str = String(text);
+
+  const supers = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','=':'⁼','(':'⁽',')':'⁾','n':'ⁿ' };
+  const subs = { '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','+':'₊','-':'₋','=':'₌','(':'₍',')':'₎' };
+
   return str
-    .replace(/(\w+)(\^?2)\b/g, '$1²')
-    .replace(/(\w+)(\^?3)\b/g, '$1³')
-    .replace(/pi\b/gi, 'π');
+    .replace(/pi\b/gi, 'π')
+    .replace(/sqrt\(([^)]+)\)/g, '√$1')
+    .replace(/\b1\/2\b/g, '½')
+    .replace(/\b1\/3\b/g, '⅓')
+    .replace(/\b1\/4\b/g, '¼')
+    .replace(/\b3\/4\b/g, '¾')
+    // Handle explicit ^ notation: x^10 -> x¹⁰
+    .replace(/\^([0-9+\-=\(\)n]+)/g, (m, p) => p.split('').map(c => supers[c] || c).join(''))
+    // Handle explicit _ notation: H_2O -> H₂O
+    .replace(/_([0-9+\-=\(\)]+)/g, (m, p) => p.split('').map(c => subs[c] || c).join(''))
+    // Smart Shorthand: Only convert 2 and 3 if preceded by a LETTER (for units like m2, cm3)
+    .replace(/([a-zA-Z])2(?!\d)/g, '$1²')
+    .replace(/([a-zA-Z])3(?!\d)/g, '$1³');
 };
 
 class AudioController {
@@ -154,14 +186,19 @@ function RollingNumber({ target }) {
 }
 
 function Setup({ onStart }) {
+  const [step, setStep] = useState(1);
   const [teams, setTeams] = useState([{ name: 'Group 1', icon: '🦁' }, { name: 'Group 2', icon: '🐼' }]);
   const [qsIn, setQsIn] = useState(defaultQuestionsStr);
+  const [school, setSchool] = useState('');
+  const [teacher, setTeacher] = useState('');
+  const [minPts, setMinPts] = useState('-100');
+  const [maxPts, setMaxPts] = useState('500');
   const [showEditor, setShowEditor] = useState(false);
   const [fileStatus, setFileStatus] = useState('');
   const fileRef = useRef(null);
 
   const downloadCSV = () => {
-    const content = "Question, Option A, Option B, Option C, Option D, Correct Answer\nWhat is 5+5?, 8, 10, 12, 15, 10";
+    const content = "Question, Option A, Option B, Option C, Option D, Correct Answer\nWhat is 1/2 of 10?, 2, 5, 8, 10, 5";
     const blob = new Blob([content], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'quiz_template.csv'; a.click();
@@ -171,28 +208,37 @@ function Setup({ onStart }) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    const extension = file.name.split('.').pop().toLowerCase();
-    if (extension === 'xlsx' || extension === 'xls') {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls') {
       reader.onload = (ev) => {
         try {
-          const data = new Uint8Array(ev.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const csv = XLSX.utils.sheet_to_csv(firstSheet, { FS: '|' });
+          const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+          const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { FS: '|' });
           setQsIn(csv);
-          setFileStatus(`Excel file "${file.name}" loaded!`);
+          setFileStatus(`Excel file loaded!`);
           setTimeout(() => setFileStatus(''), 3000);
-        } catch (err) { setFileStatus('Error reading Excel file.'); }
+        } catch (err) { setFileStatus('Error reading Excel.'); }
       };
       reader.readAsArrayBuffer(file);
     } else {
-      reader.onload = (ev) => {
-        setQsIn(ev.target.result);
-        setFileStatus(`File "${file.name}" ready!`);
-        setTimeout(() => setFileStatus(''), 3000);
-      };
+      reader.onload = (ev) => { setQsIn(ev.target.result); setFileStatus(`CSV file loaded!`); setTimeout(() => setFileStatus(''), 3000); };
       reader.readAsText(file);
     }
+  };
+
+  const generatePointsPool = (min, max) => {
+    const minVal = parseInt(min) || 0;
+    const maxVal = parseInt(max) || 100;
+    const pool = [];
+    const count = 15;
+    const rangeVal = (maxVal - minVal) / (count - 1);
+    for (let i = 0; i < count; i++) {
+        pool.push(Math.round(minVal + (rangeVal * i)));
+    }
+    [0, 50, 100, -50].forEach(v => {
+        if(v >= minVal && v <= maxVal && !pool.includes(v)) pool.push(v);
+    });
+    return pool;
   };
 
   const parseQuestions = (text) => {
@@ -216,41 +262,74 @@ function Setup({ onStart }) {
   return (
     <div className="h-full w-full flex items-center justify-center p-4 bg-[#0f172a] overflow-y-auto no-scrollbar">
       <div className="glass-strong rounded-3xl p-8 max-w-2xl w-full border border-white/10 shadow-2xl anim-pop">
-        <h1 className="text-4xl font-black mb-2 text-center shimmer-text uppercase">Mind Your Decisions!</h1>
-        <div className="space-y-6 mt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {teams.map((t, i) => (
-              <div key={i} className="flex gap-2 items-center bg-slate-900/50 p-2 rounded-xl border border-slate-700">
-                <select value={t.icon} onChange={e => { const n = [...teams]; n[i].icon = e.target.value; setTeams(n); }} className="bg-slate-800 text-lg rounded-lg outline-none">{ANIMAL_ICONS.map(icon => <option key={icon}>{icon}</option>)}</select>
-                <input value={t.name} maxLength={15} onChange={e => { const n = [...teams]; n[i].name = e.target.value; setTeams(n); }} className="flex-1 bg-transparent text-white text-sm focus:outline-none" placeholder="Team Name"/>
-                {teams.length > 2 && <button onClick={() => setTeams(teams.filter((_, idx) => idx !== i))} className="text-slate-600 px-2 hover:text-red-400">✕</button>}
+        <h1 className="text-4xl font-black mb-2 text-center shimmer-text uppercase tracking-tighter">Mind Your Decisions!</h1>
+        <p className="text-center text-slate-400 text-sm mb-6 uppercase font-bold tracking-[0.2em]">{step === 1 ? 'Step 1: Game Settings' : 'Step 2: Setup Groups'}</p>
+
+        <div className="space-y-6">
+          {step === 1 && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">School Name</label>
+                  <input value={school} onChange={e => setSchool(e.target.value)} className="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="e.g. Center for Brighter Beginnings" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Teacher Name</label>
+                  <input value={teacher} onChange={e => setTeacher(e.target.value)} className="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="e.g. Teacher MJ" />
+                </div>
               </div>
-            ))}
-            {teams.length < 6 && <button onClick={() => setTeams([...teams, { name: `Group ${teams.length + 1}`, icon: ANIMAL_ICONS[teams.length % ANIMAL_ICONS.length] }])} className="py-2 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm font-bold hover:border-blue-500 transition-all">+ Add Group</button>}
-          </div>
-          <div className="border-t border-white/5 pt-4">
-            <div className="flex justify-between items-center mb-2">
-                <button onClick={() => setShowEditor(!showEditor)} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{showEditor ? '▾ Hide Quiz Editor' : '▸ Open Quiz Editor'}</button>
+
+              <div className="bg-slate-900/40 p-4 rounded-2xl border border-white/5 space-y-3">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Mystery Box Point Range</label>
+                <div className="flex items-center gap-3">
+                    <input type="number" value={minPts} onChange={e => setMinPts(e.target.value)} className="flex-1 bg-slate-800 p-2.5 rounded-xl border border-slate-700 text-center font-bold text-red-400" placeholder="Min" />
+                    <span className="text-slate-500 font-bold">to</span>
+                    <input type="number" value={maxPts} onChange={e => setMaxPts(e.target.value)} className="flex-1 bg-slate-800 p-2.5 rounded-xl border border-slate-700 text-center font-bold text-green-400" placeholder="Max" />
+                </div>
+              </div>
+
+              <div className="border-t border-white/5 pt-4">
+                <div className="flex justify-between items-center mb-4">
+                    <button onClick={() => setShowEditor(!showEditor)} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{showEditor ? '▾ Hide Quiz Tools' : '▸ Open Quiz Editor'}</button>
+                    {fileStatus && <p className="text-green-400 text-[10px] font-bold">{fileStatus}</p>}
+                </div>
                 {showEditor && (
-                    <div className="flex gap-2">
-                        <button onClick={downloadCSV} className="text-[9px] bg-slate-700 px-2 py-1 rounded text-white uppercase font-bold">Template</button>
-                        <button onClick={() => fileRef.current.click()} className="text-[9px] bg-blue-600 px-2 py-1 rounded text-white uppercase font-bold">Upload CSV / Excel</button>
+                    <div className="flex flex-col sm:flex-row gap-3 anim-pop">
+                        <button onClick={downloadCSV} className="flex-1 text-[9px] bg-slate-700 py-3 rounded-xl text-white uppercase font-black tracking-wider shadow-lg active:scale-95 transition-all">Download Template</button>
+                        <button onClick={() => fileRef.current.click()} className="flex-1 text-[9px] bg-blue-600 py-3 rounded-xl text-white uppercase font-black tracking-wider shadow-lg active:scale-95 transition-all">Upload Questions</button>
+                        <input type="file" ref={fileRef} className="hidden" accept=".csv,.txt,.xlsx,.xls" onChange={handleFile}/>
                     </div>
                 )}
+              </div>
+
+              <button onClick={() => { audio.ding(); setStep(2); }} className="w-full py-4 rounded-2xl font-black text-lg text-white bg-slate-800 border border-slate-700 shadow-xl active:scale-95 transition-all hover:bg-slate-750">Next: Setup Teams ➜</button>
             </div>
-            <input type="file" ref={fileRef} className="hidden" accept=".csv,.txt,.xlsx,.xls" onChange={handleFile}/>
-            {fileStatus && <p className="text-green-400 text-[10px] font-bold mb-2">{fileStatus}</p>}
-            {showEditor && (
-                <div className="space-y-2 anim-pop">
-                    <textarea value={qsIn} onChange={e => setQsIn(e.target.value)} className="w-full h-40 bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-slate-400 focus:border-blue-500 outline-none" placeholder="Paste CSV or type here..."/>
-                </div>
-            )}
-          </div>
-          <button onClick={() => {
-            audio.init();
-            const parsedQs = parseQuestions(qsIn);
-            onStart(teams, parsedQs, defaultPoints);
-          }} className="w-full py-4 rounded-2xl font-black text-xl text-white shadow-2xl active:scale-95 transition-all hover:scale-[1.01]" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>START QUIZ</button>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {teams.map((t, i) => (
+                  <div key={i} className="flex gap-2 items-center bg-slate-900/50 p-2 rounded-xl border border-slate-700">
+                    <select value={t.icon} onChange={e => { const n = [...teams]; n[i].icon = e.target.value; setTeams(n); }} className="bg-slate-800 text-lg rounded-lg outline-none">{ANIMAL_ICONS.map(icon => <option key={icon}>{icon}</option>)}</select>
+                    <input value={t.name} maxLength={15} onChange={e => { const n = [...teams]; n[i].name = e.target.value; setTeams(n); }} className="flex-1 bg-transparent text-white text-sm focus:outline-none font-bold" placeholder="Team Name"/>
+                    {teams.length > 2 && <button onClick={() => setTeams(teams.filter((_, idx) => idx !== i))} className="text-slate-600 px-2 hover:text-red-400">✕</button>}
+                  </div>
+                ))}
+                {teams.length < 6 && <button onClick={() => setTeams([...teams, { name: `Group ${teams.length + 1}`, icon: ANIMAL_ICONS[teams.length % ANIMAL_ICONS.length] }])} className="py-2 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm font-bold hover:border-blue-500 transition-all">+ Add Group</button>}
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={() => setStep(1)} className="flex-1 py-4 rounded-2xl font-black text-slate-400 bg-slate-900 border border-slate-700 active:scale-95 transition-all hover:text-white">Back</button>
+                <button onClick={() => {
+                        audio.init();
+                        const parsedQs = parseQuestions(qsIn);
+                        const pointsPool = generatePointsPool(minPts, maxPts);
+                        onStart(teams, parsedQs, pointsPool, school, teacher);
+                    }} className="flex-[2] py-4 rounded-2xl font-black text-xl text-white shadow-2xl active:scale-95 transition-all hover:scale-[1.01]" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>START QUIZ</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -274,7 +353,7 @@ function Scoreboard({ teams, scoreEffects }) {
       </div>
       <div className="text-center">
         <h2 className="text-sm font-black shimmer-text uppercase">Mind Your Decisions!</h2>
-        <button onClick={() => audio.setMute(!audio.muted)} className="text-[10px] text-slate-500 uppercase font-bold mt-1 bg-slate-800 px-2 py-1 rounded">{audio.muted ? '🔇' : '🔊'}</button>
+        <button onClick={() => audio.setMute(!audio.muted)} className="text-[10px] text-slate-500 uppercase font-bold mt-1 bg-slate-800 px-2 py-1 rounded-lg">{audio.muted ? '🔇' : '🔊'}</button>
       </div>
     </div>
   );
@@ -295,14 +374,23 @@ function App() {
   const [winners, setWinners] = useState([]);
   const [revealResults, setRevealResults] = useState([]);
   const [scoreEffects, setScoreEffects] = useState({});
+  const [logs, setLogs] = useState([]);
+  const [sessionConfig, setSessionConfig] = useState({ school: '', teacher: '' });
   const timerRef = useRef(null);
 
-  const startGame = (tData, qs, pts) => {
+  const addLog = (msg) => {
+    setLogs(prev => [ { id: Date.now(), msg }, ...prev ].slice(0, 5));
+  };
+
+  const startGame = (tData, qs, pts, school, teacher) => {
     audio.startMusic();
     setTeams(tData.map((t, i) => ({ ...t, id: i + 1, score: 0 })));
     setQuestions(qs.sort(() => Math.random() - 0.5));
-    setPointPool(pts); setUsed(new Set()); setWinners([]); setScoreEffects({});
+    setPointPool(pts); 
+    setSessionConfig({ school: school || 'Center for Brighter Beginnings', teacher: teacher || 'Teacher MJ' });
+    setUsed(new Set()); setWinners([]); setScoreEffects({}); setLogs([]);
     setState('board');
+    addLog("Session Started!");
   };
 
   const pickRandom = () => {
@@ -320,11 +408,8 @@ function App() {
   const triggerScoreEffect = (teamId, pts) => {
     const id = Date.now() + Math.random();
     setScoreEffects(prev => ({ ...prev, [teamId]: [...(prev[teamId] || []), { id, pts }] }));
-    
-    // Trigger color-coded particles
     const colors = pts >= 0 ? [GREEN, BLUE] : [RED, ORANGE];
     confetti({ particleCount: 20, spread: 60, origin: { y: 0.6 }, colors });
-
     setTimeout(() => { setScoreEffects(prev => ({ ...prev, [teamId]: (prev[teamId] || []).filter(e => e.id !== id) })); }, 1500);
   };
 
@@ -341,18 +426,22 @@ function App() {
       const team = next.find(t => t.id === id);
       team.score += 5;
       triggerScoreEffect(id, 5);
+      addLog(`${team.name} gained +5 Bonus.`);
     });
 
     revealResults.forEach(r => {
+      const team = next.find(t => t.id === r.teamId);
       if(r.choice === 'keep') { 
-        next.find(t => t.id === r.teamId).score += r.pts; 
+        team.score += r.pts; 
         triggerScoreEffect(r.teamId, r.pts);
+        addLog(`${team.name} kept ${r.pts >= 0 ? '+' : ''}${r.pts} points.`);
       } else { 
         const others = next.filter(t => t.id !== r.teamId);
         others.forEach(t => { 
           t.score += r.pts; 
           triggerScoreEffect(t.id, r.pts);
         }); 
+        addLog(`${team.name} gave ${r.pts >= 0 ? '+' : ''}${r.pts} to others!`);
       } 
     });
     setTeams(next); 
@@ -368,11 +457,23 @@ function App() {
         setUsed(prev => new Set([...prev, selectedTile])); 
         setSelectedTile(null); 
         setState('board'); 
+        addLog(`No winners for Box #${selectedTile}.`);
         return; 
     }
     audio.ding();
     confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 }, colors: [GREEN, BLUE, PURPLE] });
     setState('decision');
+  };
+
+  const handleBulkDecision = (choice) => {
+    audio.ding();
+    const bulkResults = winners.map(id => ({
+      teamId: id,
+      choice: choice,
+      pts: pointPool[Math.floor(Math.random() * pointPool.length)]
+    }));
+    setRevealResults(bulkResults);
+    setTimeout(() => setState('reveal'), 600);
   };
 
   const printCertificate = () => {
@@ -393,28 +494,21 @@ function App() {
             h1 { font-size: 60px; margin: 0; text-transform: uppercase; font-weight: 900; }
             p { font-size: 24px; font-style: italic; color: #475569; margin: 20px 0; }
             .winner-name { font-size: 50px; font-weight: 900; color: #2563eb; margin: 30px 0; }
-            .game-title { font-size: 32px; font-weight: 900; text-transform: uppercase; color: #0f172a; margin-top: 40px; }
             .footer { margin-top: 60px; display: flex; justify-content: space-between; align-items: flex-end; }
             .sig { border-top: 2px solid #cbd5e1; padding-top: 10px; width: 250px; font-weight: bold; }
-            .date { color: #94a3b8; font-size: 14px; }
           </style>
         </head>
         <body>
           <div class="cert">
-            <div class="school">Center for Brighter Beginnings</div>
+            <div class="school">${sessionConfig.school}</div>
             <h1>Certificate of Victory</h1>
-            <p>This award is proudly presented to</p>
+            <p>Presented to</p>
             <div class="winner-name">${winner.icon} ${winner.name}</div>
             <p>for achieving the highest score of <strong>${winner.score}</strong> in</p>
-            <div class="game-title">Mind Your Decisions!</div>
-            <div class="footer">
-              <div class="sig">Teacher MJ</div>
-              <div class="date">${today}</div>
-            </div>
+            <h2>MIND YOUR DECISIONS!</h2>
+            <div class="footer"><div class="sig">${sessionConfig.teacher}</div><div>${today}</div></div>
           </div>
-          <script>
-            setTimeout(() => { window.print(); window.close(); }, 500);
-          <\/script>
+          <script>setTimeout(() => { window.print(); window.close(); }, 500);<\/script>
         </body>
       </html>
     `);
@@ -430,101 +524,124 @@ function App() {
         <div className="max-w-6xl w-full mx-auto h-full flex flex-col">
           <Scoreboard teams={teams} scoreEffects={scoreEffects} />
           <div className="flex-1 overflow-auto no-scrollbar py-4 relative">
+            
             {state === 'board' && (
-              <div className="h-full flex flex-col justify-center">
-                <div className="grid gap-2 mb-8" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${questions.length > 30 ? '45px' : '65px'}, 1fr))`, maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+              <div className="h-full flex flex-col justify-center relative">
+                <div className="absolute left-0 top-0 w-44 h-full hidden lg:flex flex-col gap-2 p-2 opacity-40">
+                    <h4 className="text-[9px] font-black uppercase text-slate-500 tracking-widest border-b border-white/5 pb-1">Activity Log</h4>
+                    <div className="flex flex-col gap-1.5 overflow-hidden">
+                        {logs.map(log => (
+                            <div key={log.id} className="log-entry text-[9px] text-slate-400 leading-tight">• {log.msg}</div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid gap-2.5 mb-8 mx-auto w-full max-w-[850px]" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${questions.length > 25 ? '50px' : '65px'}, 1fr))` }}>
                   {questions.map((_, i) => {
                     const n = i + 1; const isUsed = used.has(n); const isScan = scanning && scanTile === n; const isSel = !scanning && selectedTile === n;
                     return (
-                        <div key={n} className={`rounded-xl border flex items-center justify-center aspect-square font-black transition-all relative ${isUsed ? 'bg-slate-900/40 opacity-30 border-transparent' : 'bg-slate-800/40 border-white/5 text-white'}`} style={isScan ? {background:ORANGE, color:'white'} : (isSel ? {background:GREEN, boxShadow:`0 0 30px ${GREEN}`} : {})}>
+                        <div key={n} className={`mystery-tile rounded-2xl border flex items-center justify-center aspect-square font-black text-lg transition-all relative ${isUsed ? 'used' : 'bg-slate-800/40 border-white/5 text-white shadow-lg'}`} style={isScan ? {background:ORANGE, color:'white'} : (isSel ? {background:GREEN, boxShadow:`0 0 30px ${GREEN}`} : {})}>
                             {n}
                             {isUsed && <span className="absolute bottom-1 right-1 text-[8px] opacity-60">✓</span>}
                         </div>
                     );
                   })}
                 </div>
+                
                 <div className="flex flex-col items-center mt-8 gap-4">
-                  {!selectedTile && !scanning && <button onClick={pickRandom} className="px-12 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${ORANGE},${RED})`}}>PICK A BOX</button>}
-                  {selectedTile && !scanning && <button onClick={() => { audio.whoop(); setCurrentQ(questions[selectedTile - 1]); setTimer(60); setTimerRunning(true); setState('question'); }} className="px-12 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${GREEN},#4a9e20)`}}>OPEN BOX #{selectedTile}</button>}
-                  {!scanning && <button onClick={() => { audio.playEnd(); confetti(); setState('endgame'); }} className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-4 hover:text-white transition-all">FINISH SESSION</button>}
+                  {!selectedTile && !scanning && <button onClick={pickRandom} className="px-14 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl active:scale-95 transition-all hover:scale-105" style={{background:`linear-gradient(135deg,${ORANGE},${RED})`}}>PICK A BOX</button>}
+                  {selectedTile && !scanning && <button onClick={() => { audio.whoop(); setCurrentQ(questions[selectedTile - 1]); setTimer(60); setTimerRunning(true); setState('question'); }} className="px-14 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${GREEN},#4a9e20)`}}>OPEN BOX #{selectedTile}</button>}
+                  {!scanning && <button onClick={() => { audio.playEnd(); confetti(); setState('endgame'); }} className="text-slate-500 font-bold uppercase text-[9px] tracking-[0.2em] mt-6 hover:text-white transition-all cursor-pointer">Finish Session</button>}
                 </div>
               </div>
             )}
+
             {state === 'question' && (
               <div className="flex flex-col items-center justify-center h-full anim-pop px-4 text-center overflow-y-auto no-scrollbar">
                 <div className={`text-7xl font-black mb-6 ${timer <= 5 ? 'text-red-500 anim-pulse-red' : 'text-green-500'}`}>{timer}s</div>
-                <div className="glass-strong rounded-[2rem] p-10 max-w-3xl w-full border border-white/5 shadow-2xl">
-                  <p className="text-2xl font-bold leading-relaxed mb-6">{currentQ.q}</p>
-                  {currentQ.options && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{currentQ.options.map((opt, idx) => <div key={idx} className="bg-slate-800/50 p-4 rounded-2xl border border-white/10 flex items-center gap-4"><span className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-black text-white text-sm shrink-0">{String.fromCharCode(65 + idx)}</span><span className="text-lg font-medium text-slate-200 text-left">{opt}</span></div>)}</div>}
+                <div className="glass-strong rounded-[2.5rem] p-10 max-w-3xl w-full border border-white/5 shadow-2xl">
+                  <p className="text-3xl font-bold leading-relaxed mb-8 whitespace-pre-line">{currentQ.q}</p>
+                  {currentQ.options && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{currentQ.options.map((opt, idx) => <div key={idx} className="bg-slate-800/50 p-4 rounded-2xl border border-white/10 flex items-center gap-4 text-left"><span className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-black text-white text-sm shrink-0">{String.fromCharCode(65 + idx)}</span><span className="text-lg font-medium text-slate-200">{opt}</span></div>)}</div>}
                 </div>
                 <button onClick={() => { audio.reveal(); setState('answer'); setTimerRunning(false); }} className="px-12 py-5 rounded-2xl font-black text-white text-2xl shadow-2xl mt-8" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>REVEAL ANSWER</button>
               </div>
             )}
+
             {state === 'answer' && (
-              <div className="flex flex-col items-center justify-center h-full anim-slide px-4 text-center">
-                <div className="glass-strong rounded-[2rem] p-10 max-w-3xl w-full border border-white/5 shadow-2xl mb-10">
-                  <p className="text-4xl font-black text-white mb-6">{currentQ.a}</p>
+              <div className="flex flex-col items-center justify-center h-full anim-pop px-4 text-center">
+                <div className="glass-strong rounded-[2.5rem] p-12 max-w-3xl w-full border border-white/5 shadow-2xl mb-10">
+                  <p className="text-5xl font-black text-white mb-6">{currentQ.a}</p>
                   <div className="h-2 w-24 bg-green-500 mx-auto rounded-full"></div>
                 </div>
-                <p className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Who gets the +5 Bonus?</p>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Assign +5 Bonus Points</p>
                 <div className="flex flex-wrap justify-center gap-4 mb-10">
-                  {teams.map((t, i) => <button key={t.id} onClick={() => { audio.pop(); setWinners(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]); }} className={`px-8 py-4 rounded-2xl font-black text-white border-4 transition-all ${winners.includes(t.id) ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-40'}`} style={{background: (i % 2 === 0 ? BLUE : PURPLE)}}><span className="mr-2">{t.icon}</span><span className="team-name-display inline-block">{t.name}</span></button>)}
+                  {teams.map((t, i) => <button key={t.id} onClick={() => { audio.pop(); setWinners(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]); }} className={`px-8 py-4 rounded-2xl font-black text-white border-4 transition-all ${winners.includes(t.id) ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-30'}`} style={{background: (i % 2 === 0 ? BLUE : PURPLE)}}><span className="mr-2">{t.icon}</span><span className="team-name-display inline-block">{t.name}</span></button>)}
                 </div>
-                <button onClick={handleCorrectAnswerConfirmation} className="px-12 py-5 rounded-2xl font-black text-white bg-green-600 shadow-xl hover:scale-105 active:scale-95 transition-all">{winners.length ? 'GET BONUS & DECIDE BOX' : 'NOBODY GOT IT'}</button>
+                <button onClick={handleCorrectAnswerConfirmation} className="px-14 py-6 rounded-2xl font-black text-white bg-green-600 shadow-xl hover:scale-105 active:scale-95 transition-all text-xl">{winners.length ? 'GET BOX & DECIDE' : 'NO ONE GOT IT'}</button>
               </div>
             )}
+
             {state === 'decision' && (
-              <div className="flex flex-wrap gap-6 justify-center items-center h-full px-4 overflow-y-auto no-scrollbar">
-                {winners.map((id, i) => {
-                  const t = teams.find(tm => tm.id === id); const isDone = revealResults.some(r => r.teamId === id); const choice = revealResults.find(r => r.teamId === id)?.choice;
-                  return (
-                    <div key={id} className="glass rounded-3xl p-8 min-w-[280px] text-center border border-white/5 shadow-2xl relative overflow-hidden transition-all duration-300" style={{ background: isDone ? (choice === 'keep' ? 'rgba(102, 191, 57, 0.4)' : 'rgba(255, 51, 85, 0.4)') : 'rgba(30, 41, 59, 0.8)' }}>
-                      <span className="text-4xl block mb-2">{t.icon}</span>
-                      <h3 className="text-xl font-black mb-6 uppercase tracking-widest team-name-display mx-auto" style={{color: (isDone ? 'white' : (i % 2 === 0 ? BLUE : PURPLE))}}>{t.name}</h3>
-                      <div className="flex flex-col gap-4">
-                        <button disabled={isDone} onClick={() => { audio.ding(); const res = [...revealResults, { teamId: id, choice: 'keep', pts: pointPool[Math.floor(Math.random()*pointPool.length)] }]; if(res.length === winners.length) { setRevealResults(res); setTimeout(() => setState('reveal'), 600); } else setRevealResults(res); }} className={`py-5 rounded-2xl font-black text-white text-xl transition-all duration-300 ${choice === 'keep' ? 'bg-white text-green-600 scale-105' : (isDone ? 'opacity-0 h-0 p-0 overflow-hidden' : 'btn-keep hover:scale-105')}`}>{choice === 'keep' ? 'LOCKED IN' : 'KEEP BOX'}</button>
-                        <button disabled={isDone} onClick={() => { audio.ding(); const res = [...revealResults, { teamId: id, choice: 'give', pts: pointPool[Math.floor(Math.random()*pointPool.length)] }]; if(res.length === winners.length) { setRevealResults(res); setTimeout(() => setState('reveal'), 600); } else setRevealResults(res); }} className={`py-5 rounded-2xl font-black text-white text-xl transition-all duration-300 ${choice === 'give' ? 'bg-white text-red-600 scale-105' : (isDone ? 'opacity-0 h-0 p-0 overflow-hidden' : 'btn-give hover:scale-105')}`}>{choice === 'give' ? 'LOCKED IN' : 'GIVE BOX'}</button>
+              <div className="flex flex-col items-center justify-center h-full px-4 overflow-y-auto no-scrollbar py-10">
+                {/* ALL Actions - The requested feature */}
+                {winners.length > 1 && (
+                  <div className="flex gap-4 mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <button onClick={() => handleBulkDecision('keep')} className="px-8 py-3 bg-green-600 rounded-full text-[11px] font-black text-white uppercase tracking-widest hover:bg-green-500 transition-all shadow-lg border-2 border-green-400/50">All Keep Box</button>
+                    <button onClick={() => handleBulkDecision('give')} className="px-8 py-3 bg-red-600 rounded-full text-[11px] font-black text-white uppercase tracking-widest hover:bg-red-500 transition-all shadow-lg border-2 border-red-400/50">All Give Box</button>
+                  </div>
+                )}
+                
+                <div className="flex flex-wrap gap-6 justify-center items-center">
+                  {winners.map((id, i) => {
+                    const t = teams.find(tm => tm.id === id); const isDone = revealResults.some(r => r.teamId === id); const choice = revealResults.find(r => r.teamId === id)?.choice;
+                    return (
+                      <div key={id} className="glass rounded-[2rem] p-8 min-w-[280px] text-center border border-white/5 shadow-2xl transition-all duration-300" style={{ background: isDone ? (choice === 'keep' ? 'rgba(102, 191, 57, 0.4)' : 'rgba(255, 51, 85, 0.4)') : 'rgba(30, 41, 59, 0.8)' }}>
+                        <span className="text-4xl block mb-2">{t.icon}</span>
+                        <h3 className="text-xl font-black mb-8 uppercase tracking-widest team-name-display mx-auto" style={{color: (isDone ? 'white' : (i % 2 === 0 ? BLUE : PURPLE))}}>{t.name}</h3>
+                        <div className="flex flex-col gap-4">
+                          <button disabled={isDone} onClick={() => { audio.ding(); const res = [...revealResults, { teamId: id, choice: 'keep', pts: pointPool[Math.floor(Math.random()*pointPool.length)] }]; if(res.length === winners.length) { setRevealResults(res); setTimeout(() => setState('reveal'), 600); } else setRevealResults(res); }} className={`py-5 rounded-2xl font-black text-white text-xl transition-all ${choice === 'keep' ? 'bg-white text-green-600 scale-105 shadow-2xl' : (isDone ? 'opacity-0 h-0 p-0 overflow-hidden' : 'btn-keep hover:scale-105')}`}>{choice === 'keep' ? 'KEEPING' : 'KEEP BOX'}</button>
+                          <button disabled={isDone} onClick={() => { audio.ding(); const res = [...revealResults, { teamId: id, choice: 'give', pts: pointPool[Math.floor(Math.random()*pointPool.length)] }]; if(res.length === winners.length) { setRevealResults(res); setTimeout(() => setState('reveal'), 600); } else setRevealResults(res); }} className={`py-5 rounded-2xl font-black text-white text-xl transition-all ${choice === 'give' ? 'bg-white text-red-600 scale-105 shadow-2xl' : (isDone ? 'opacity-0 h-0 p-0 overflow-hidden' : 'btn-give hover:scale-105')}`}>{choice === 'give' ? 'GIVING' : 'GIVE BOX'}</button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             )}
+
             {state === 'reveal' && (
               <div className="flex flex-col items-center justify-center h-full anim-pop px-4">
-                <div className="glass-strong rounded-[2.5rem] p-12 max-w-4xl w-full text-center border border-white/10 shadow-2xl">
+                <div className="glass-strong rounded-[3rem] p-12 max-w-4xl w-full text-center border border-white/10 shadow-2xl">
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                      {revealResults.map((r, i) => (
                        <div key={i} className={`flex flex-col items-center glass p-6 rounded-2xl border border-white/5 ${r.choice === 'keep' ? 'bg-green-900/20' : 'bg-red-900/20'}`}>
                          <span className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 team-name-display">{teams.find(tm => tm.id === r.teamId).name}</span>
-                         <div className="space-y-1 mb-4">
-                            <div className="text-xs text-green-400 font-bold tracking-widest">PERMANENT BONUS: +5</div>
-                            <div className={`text-5xl font-black ${r.pts >= 0 ? 'text-green-500' : 'text-red-500'}`}>Box: {r.pts >= 0 ? '+' : ''}{r.pts}</div>
-                         </div>
-                         <div className={`text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full ${r.choice === 'keep' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>DECIDED: {r.choice}</div>
+                         <div className={`text-5xl font-black ${r.pts >= 0 ? 'text-green-500' : 'text-red-500'}`}>Box: {r.pts >= 0 ? '+' : ''}{r.pts}</div>
+                         <div className={`text-[10px] font-bold uppercase tracking-widest mt-4 px-4 py-2 rounded-full ${r.choice === 'keep' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>DECIDED: {r.choice}</div>
                        </div>
                      ))}
                    </div>
-                   <button onClick={processFinalScores} className="w-full py-6 rounded-2xl font-black text-white text-2xl shadow-xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>APPLY ALL SCORES & CONTINUE ➜</button>
+                   <button onClick={processFinalScores} className="w-full py-6 rounded-2xl font-black text-white text-2xl shadow-xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>APPLY RESULTS & CONTINUE ➜</button>
                 </div>
               </div>
             )}
+
             {state === 'endgame' && (
               <div className="flex flex-col items-center justify-center h-full px-4 text-center overflow-y-auto no-scrollbar">
-                <h1 className="text-5xl md:text-7xl font-black mb-12 shimmer-text uppercase tracking-tighter w-full px-4">{finalWinner.name} Wins!</h1>
+                <h1 className="text-6xl md:text-8xl font-black mb-12 shimmer-text uppercase tracking-tighter w-full px-4">{finalWinner.name} Wins!</h1>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 w-full max-w-5xl items-end justify-center">
                     {teams.sort((a,b)=>b.score-a.score).map((t, i) => (
-                        <div key={t.id} className={`bg-slate-900/50 p-6 rounded-3xl border-b-8 shadow-2xl relative transition-all duration-700 ${i === 0 ? 'winner-glow scale-110' : ''}`} style={{borderColor: i===0?GREEN:BLUE, minHeight: i===0?'280px':'220px', order: i === 0 ? 2 : (i === 1 ? 1 : 3)}}>
+                        <div key={t.id} className={`bg-slate-900/50 p-6 rounded-[2.5rem] border-b-8 shadow-2xl relative transition-all duration-700 ${i === 0 ? 'winner-glow scale-110' : ''}`} style={{borderColor: i===0?GREEN:BLUE, minHeight: i===0?'280px':'220px', order: i === 0 ? 2 : (i === 1 ? 1 : 3)}}>
                             <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 w-12 h-12 rounded-full border-2 border-slate-700 flex items-center justify-center font-black text-slate-400">{i+1}</div>
-                            <span className="text-6xl block mb-4 mt-4">{t.icon}</span>
-                            <div className="font-bold text-slate-300 text-xs uppercase tracking-widest team-name-display mx-auto">{t.name}</div>
+                            <span className="text-6xl block mb-4 mt-6">{t.icon}</span>
+                            <div className="font-bold text-slate-300 text-[10px] uppercase tracking-[0.2em] team-name-display mx-auto">{t.name}</div>
                             <div className={`text-5xl font-black mt-2 ${t.score < 0 ? 'text-red-500' : (t.score > 0 ? 'text-green-500' : 'text-white')}`}><RollingNumber target={t.score} /></div>
                         </div>
                     ))}
                 </div>
                 <div className="flex flex-wrap gap-4 justify-center">
                   <button onClick={printCertificate} className="px-16 py-6 rounded-2xl font-black text-white text-2xl bg-blue-600 shadow-xl hover:scale-105 active:scale-95 transition-all">PRINT CERTIFICATE</button>
-                  <button onClick={() => { audio.stopEnd(); setState('setup'); }} className="px-16 py-6 rounded-2xl font-black text-white text-2xl bg-slate-800 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 transition-all shadow-xl hover:scale-105 active:scale-95">PLAY AGAIN</button>
+                  <button onClick={() => { audio.stopEnd(); setState('setup'); }} className="px-16 py-6 rounded-2xl font-black text-white text-2xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-all shadow-xl hover:scale-105">REPLAY SESSION</button>
                 </div>
               </div>
             )}
