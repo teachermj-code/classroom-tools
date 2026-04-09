@@ -10,6 +10,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet">
   <style>
     html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; }
@@ -58,6 +59,10 @@
       box-shadow: 0 0 50px rgba(102, 191, 57, 0.3);
       border-color: #66bf39 !important;
     }
+
+    .geometry-container svg {
+      filter: drop-shadow(0 0 15px rgba(255,255,255,0.1));
+    }
   </style>
  </head>
  <body>
@@ -79,37 +84,17 @@ The length of space traveled by a moving object. | | | | | Distance
 The duration of an event or how long it takes to travel a certain distance. | | | | | Time
 The complete amount represented in a pie chart, usually equal to 100%. | | | | | Whole
 A solid figure with two circular bases and a curved surface. | | | | | Cylinder
-A specific part or slice of a circle in a pie chart. | | | | | Sector
-What is the sum of all the angles in a pie chart? | 90° | 180° | 360° | 100° | 360°
-If a pie chart represents 200 students and 25% like math, how many students like math? | 50 | 25 | 100 | 150 | 50
-A car travels 150 kilometers in 3 hours. What is its average speed? | 40 km/h | 50 km/h | 60 km/h | 450 km/h | 50 km/h
-How far will a bus travel in 4 hours if its average speed is 60 km/h? | 120 km | 200 km | 240 km | 300 km | 240 km
-How long will it take for a cyclist traveling at 15 km/h to cover a distance of 45 km? | 2 hours | 4 hours | 5 hours | 3 hours | 3 hours
-What is the volume of a rectangular prism with length 5cm, width 3cm, and height 4cm? | 60 cm³ | 35 cm³ | 12 cm³ | 47 cm³ | 60 cm³
-Find the volume of a cube with an edge of 6 cm. | 36 cm³ | 216 cm³ | 18 cm³ | 144 cm³ | 216 cm³
-What is the surface area of a cube with an edge of 5 cm? | 150 cm² | 25 cm² | 125 cm² | 100 cm² | 150 cm²
-Find the surface area of a rectangular box with dimensions 2m by 3m by 4m. | 24 m² | 48 m² | 52 m² | 60 m² | 52 m²
-A composite figure is made of a square (side 4m) and a rectangle (4m by 6m). Total area? | 40 m² | 24 m² | 16 m² | 30 m² | 40 m²
-What is the volume of a cylinder with radius 3cm and height 10cm? (Use π=3.14) | 94.2 cm³ | 188.4 cm³ | 28.26 cm³ | 282.6 cm³ | 282.6 cm³
-In a pie chart, what angle represents 50% of the data? | 90° | 100° | 360° | 180° | 180°
-A runner completes a 10 km race in 0.5 hours. What is his speed? | 5 km/h | 20 km/h | 15 km/h | 10 km/h | 20 km/h
-Find the volume of a cone with a radius of 3cm and a height of 4cm. (Use π=3.14) | 113.04 cm³ | 75.36 cm³ | 37.68 cm³ | 28.26 cm³ | 37.68 cm³
-A train moves at a steady speed of 80 km/h. How far does it go in 2.5 hours? | 160 km | 200 km | 240 km | 180 km | 200 km
-Rectangle (8m x 5m) + triangle (base 8m, height 3m) attached. Total area? | 40 m² | 64 m² | 52 m² | 76 m² | 52 m²
-If the area of one face of a cube is 25 cm², what is its total surface area? | 150 cm² | 125 cm² | 100 cm² | 200 cm² | 150 cm²
-If a sector has an angle of 90°, what percentage of the whole is it? | 50% | 25% | 90% | 33% | 25%
-A bird flies 120 meters in 15 seconds. What is its speed? | 6 m/s | 10 m/s | 15 m/s | 8 m/s | 8 m/s
-A rectangular tank is 2m long, 1.5m wide, and 2m high. What is its volume? | 4 m³ | 5.5 m³ | 7 m³ | 6 m³ | 6 m³
-If a person walks 4 km in 1 hour, what is their speed? | | | | | 4 km/h
-In a pie chart, if a sector represents 25%, what is its angle? | | | | | 90 degrees
-What is the volume of a rectangular prism with dimensions 2m, 2m, and 5m? | | | | | 20 m³
-If a cube has an edge length of 3 cm, what is its surface area? | | | | | 54 cm²
-How long will it take to travel 100 km at a speed of 50 km/h? | | | | | 2 hours
-How far will a boat travel in 3 hours at a speed of 25 km/h? | | | | | 75 km
-Find the volume of a cylinder with radius 2cm and height 5cm. (Use π=3.14) | | | | | 62.8 cm³
-If 50% of 400 students like apples, how many like apples? | | | | | 200 students
-A figure is made of two identical squares, each with a side of 3 m. Total area? | | | | | 18 m²
-What is the surface area of a rectangular box with dimensions 1 m by 2 m by 3 m? | | | | | 22 m²`;
+A specific part or slice of a circle in a pie chart. | | | | | Sector`;
+
+// Helper function to format math superscripts
+const formatMath = (text) => {
+  if (!text) return "";
+  const str = String(text);
+  return str
+    .replace(/(\w+)(\^?2)\b/g, '$1²')
+    .replace(/(\w+)(\^?3)\b/g, '$1³')
+    .replace(/pi\b/gi, 'π');
+};
 
 class AudioController {
   constructor() {
@@ -136,6 +121,16 @@ class AudioController {
   }
   tick() { this._osc('square', 800, 0.04); }
   ding() { this._osc('sine', 880, 0.15, 0.2); this._osc('sine', 1320, 0.2, 0.15, 0.08); }
+  pop() { this._osc('sine', 600, 0.05, 0.1); }
+  whoop() { 
+    if(!this.ctx || this.muted) return;
+    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(200, this.ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(1000, this.ctx.currentTime + 0.3);
+    g.gain.setValueAtTime(0.1, this.ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
+    o.connect(g); g.connect(this.ctx.destination); o.start(); o.stop(this.ctx.currentTime + 0.3);
+  }
   reveal() { for(let i=0; i<6; i++) this._osc('sine', 400+i*150, 0.15, 0.1, i*0.06); }
   startMusic() { this.stopEnd(); this.bgMusic.currentTime = 0; this.bgMusic.play().catch(() => {}); }
   stopMusic() { this.bgMusic.pause(); }
@@ -143,6 +138,88 @@ class AudioController {
   stopEnd() { this.celebMusic.pause(); this.celebMusic.currentTime = 0; }
 }
 const audio = new AudioController();
+
+// --- SMART GEOMETRY COMPONENT ---
+function GeometryDisplay({ questionText }) {
+  const text = questionText.toLowerCase();
+  const extractDimensions = () => {
+    const matches = questionText.match(/\d+(\.\d+)?\s*(cm|m|km|units|unit|in|ft)/gi) || [];
+    return matches.map(m => formatMath(m.trim()));
+  };
+
+  const dims = extractDimensions();
+  const color = "rgba(255,255,255,0.8)";
+  const strokeColor = "#45a3e5";
+
+  if (text.includes("cylinder")) {
+    return (
+      <div className="geometry-container mb-6 flex justify-center scale-110">
+        <svg width="120" height="150" viewBox="0 0 120 150">
+          <ellipse cx="60" cy="30" rx="40" ry="15" fill="none" stroke={strokeColor} strokeWidth="3" />
+          <path d="M20 30 V120 A40 15 0 0 0 100 120 V30" fill="none" stroke={strokeColor} strokeWidth="3" />
+          <ellipse cx="60" cy="120" rx="40" ry="15" fill="none" stroke={strokeColor} strokeWidth="3" strokeDasharray="4 4" />
+          <text x="60" y="35" fontSize="11" fill={color} textAnchor="middle">r = {dims[0] || '?'}</text>
+          <text x="110" y="80" fontSize="11" fill={color} textAnchor="middle" transform="rotate(90, 110, 80)">h = {dims[1] || '?'}</text>
+        </svg>
+      </div>
+    );
+  }
+
+  if (text.includes("cube") || text.includes("rectangular prism") || text.includes("box")) {
+    return (
+      <div className="geometry-container mb-6 flex justify-center scale-110">
+        <svg width="150" height="150" viewBox="0 0 150 150">
+          <rect x="20" y="50" width="80" height="70" fill="none" stroke={strokeColor} strokeWidth="3" />
+          <path d="M20 50 L50 20 L130 20 L100 50 Z" fill="none" stroke={strokeColor} strokeWidth="3" />
+          <path d="M100 50 L130 20 L130 90 L100 120 Z" fill="none" stroke={strokeColor} strokeWidth="3" />
+          <text x="60" y="140" fontSize="11" fill={color} textAnchor="middle">L: {dims[0] || '?'}</text>
+          <text x="145" y="60" fontSize="11" fill={color} textAnchor="middle" transform="rotate(90, 145, 60)">W: {dims[1] || dims[0] || '?'}</text>
+          <text x="10" y="85" fontSize="11" fill={color} textAnchor="middle" transform="rotate(-90, 10, 85)">H: {dims[2] || dims[0] || '?'}</text>
+        </svg>
+      </div>
+    );
+  }
+
+  if (text.includes("rectangle") || text.includes("square")) {
+    const isSquare = text.includes("square");
+    return (
+      <div className="geometry-container mb-6 flex justify-center">
+        <svg width="150" height="100" viewBox="0 0 150 100">
+          <rect x="25" y="20" width={isSquare ? "50" : "100"} height="50" fill="none" stroke={strokeColor} strokeWidth="3" />
+          <text x="75" y="90" fontSize="11" fill={color} textAnchor="middle">{dims[0] || '?'}</text>
+          {!isSquare && <text x="140" y="45" fontSize="11" fill={color} textAnchor="middle" transform="rotate(90, 140, 45)">{dims[1] || '?'}</text>}
+        </svg>
+      </div>
+    );
+  }
+
+  if (text.includes("triangle")) {
+    return (
+      <div className="geometry-container mb-6 flex justify-center">
+        <svg width="150" height="100" viewBox="0 0 150 100">
+          <path d="M20 80 L130 80 L75 20 Z" fill="none" stroke={strokeColor} strokeWidth="3" />
+          <path d="M75 20 V80" fill="none" stroke={strokeColor} strokeWidth="2" strokeDasharray="4 4" />
+          <text x="75" y="95" fontSize="11" fill={color} textAnchor="middle">b: {dims[0] || '?'}</text>
+          <text x="85" y="55" fontSize="11" fill={color} textAnchor="middle">h: {dims[1] || '?'}</text>
+        </svg>
+      </div>
+    );
+  }
+
+  if (text.includes("cone")) {
+    return (
+      <div className="geometry-container mb-6 flex justify-center">
+        <svg width="120" height="150" viewBox="0 0 120 150">
+          <ellipse cx="60" cy="120" rx="40" ry="15" fill="none" stroke={strokeColor} strokeWidth="3" />
+          <path d="M20 120 L60 20 L100 120" fill="none" stroke={strokeColor} strokeWidth="3" />
+          <text x="60" y="130" fontSize="11" fill={color} textAnchor="middle">r: {dims[0] || '?'}</text>
+          <text x="75" y="70" fontSize="11" fill={color} textAnchor="middle">h: {dims[1] || '?'}</text>
+        </svg>
+      </div>
+    );
+  }
+  return null;
+}
 
 function RollingNumber({ target }) {
   const [display, setDisplay] = useState(target);
@@ -179,14 +256,33 @@ function Setup({ onStart }) {
 
   const handleFile = (e) => {
     const file = e.target.files[0];
-    if (file) { 
-        const reader = new FileReader(); 
-        reader.onload = (ev) => {
-            setQsIn(ev.target.result);
-            setFileStatus(`File "${file.name}" uploaded!`);
-            setTimeout(() => setFileStatus(''), 3000);
-        }; 
-        reader.readAsText(file); 
+    if (!file) return;
+
+    const reader = new FileReader();
+    const extension = file.name.split('.').pop().toLowerCase();
+
+    if (extension === 'xlsx' || extension === 'xls') {
+      reader.onload = (ev) => {
+        try {
+          const data = new Uint8Array(ev.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const csv = XLSX.utils.sheet_to_csv(firstSheet, { FS: '|' });
+          setQsIn(csv);
+          setFileStatus(`Excel file "${file.name}" loaded!`);
+          setTimeout(() => setFileStatus(''), 3000);
+        } catch (err) {
+          setFileStatus('Error reading Excel file.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = (ev) => {
+        setQsIn(ev.target.result);
+        setFileStatus(`File "${file.name}" ready!`);
+        setTimeout(() => setFileStatus(''), 3000);
+      };
+      reader.readAsText(file);
     }
   };
 
@@ -199,12 +295,12 @@ function Setup({ onStart }) {
             return null;
         }
         if (cols.length >= 6) {
-            const q = cols[0];
-            const opts = cols.slice(1, 5).filter(o => o !== "");
-            const a = cols[5];
+            const q = formatMath(cols[0]);
+            const opts = cols.slice(1, 5).filter(o => o !== "").map(formatMath);
+            const a = formatMath(cols[5]);
             return opts.length > 0 ? { q, options: opts, a } : { q, a };
         } else if (cols.length >= 2) {
-            return { q: cols[0], a: cols[cols.length - 1] };
+            return { q: formatMath(cols[0]), a: formatMath(cols[cols.length - 1]) };
         }
         return null;
     }).filter(Boolean);
@@ -231,11 +327,11 @@ function Setup({ onStart }) {
                 {showEditor && (
                     <div className="flex gap-2">
                         <button onClick={downloadCSV} className="text-[9px] bg-slate-700 px-2 py-1 rounded text-white uppercase font-bold">Template</button>
-                        <button onClick={() => fileRef.current.click()} className="text-[9px] bg-blue-600 px-2 py-1 rounded text-white uppercase font-bold">Upload CSV</button>
+                        <button onClick={() => fileRef.current.click()} className="text-[9px] bg-blue-600 px-2 py-1 rounded text-white uppercase font-bold">Upload CSV / Excel</button>
                     </div>
                 )}
             </div>
-            <input type="file" ref={fileRef} className="hidden" accept=".csv,.txt" onChange={handleFile}/>
+            <input type="file" ref={fileRef} className="hidden" accept=".csv,.txt,.xlsx,.xls" onChange={handleFile}/>
             {fileStatus && <p className="text-green-400 text-[10px] font-bold mb-2">{fileStatus}</p>}
             {showEditor && (
                 <div className="space-y-2 anim-pop">
@@ -327,6 +423,7 @@ function App() {
   }, [timerRunning]);
 
   const processFinalScores = () => {
+    audio.reveal();
     const next = [...teams];
     winners.forEach(id => {
       const team = next.find(t => t.id === id);
@@ -361,6 +458,7 @@ function App() {
         setState('board'); 
         return; 
     }
+    audio.ding();
     confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 }, colors: [GREEN, BLUE, PURPLE] });
     setState('decision');
   };
@@ -387,7 +485,7 @@ function App() {
                 </div>
                 <div className="flex flex-col items-center mt-8 gap-4">
                   {!selectedTile && !scanning && <button onClick={pickRandom} className="px-12 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${ORANGE},${RED})`}}>PICK A BOX</button>}
-                  {selectedTile && !scanning && <button onClick={() => { setCurrentQ(questions[selectedTile - 1]); setTimer(60); setTimerRunning(true); setState('question'); }} className="px-12 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${GREEN},#4a9e20)`}}>OPEN BOX #{selectedTile}</button>}
+                  {selectedTile && !scanning && <button onClick={() => { audio.whoop(); setCurrentQ(questions[selectedTile - 1]); setTimer(60); setTimerRunning(true); setState('question'); }} className="px-12 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${GREEN},#4a9e20)`}}>OPEN BOX #{selectedTile}</button>}
                   {!scanning && <button onClick={() => { audio.playEnd(); confetti(); setState('endgame'); }} className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-4 hover:text-white transition-all">FINISH SESSION</button>}
                 </div>
               </div>
@@ -396,6 +494,7 @@ function App() {
               <div className="flex flex-col items-center justify-center h-full anim-pop px-4 text-center overflow-y-auto no-scrollbar">
                 <div className={`text-7xl font-black mb-6 ${timer <= 5 ? 'text-red-500 anim-pulse-red' : 'text-green-500'}`}>{timer}s</div>
                 <div className="glass-strong rounded-[2rem] p-10 max-w-3xl w-full border border-white/5 shadow-2xl">
+                  <GeometryDisplay questionText={currentQ.q} />
                   <p className="text-2xl font-bold leading-relaxed mb-6">{currentQ.q}</p>
                   {currentQ.options && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{currentQ.options.map((opt, idx) => <div key={idx} className="bg-slate-800/50 p-4 rounded-2xl border border-white/10 flex items-center gap-4"><span className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-black text-white text-sm shrink-0">{String.fromCharCode(65 + idx)}</span><span className="text-lg font-medium text-slate-200 text-left">{opt}</span></div>)}</div>}
                 </div>
@@ -410,7 +509,7 @@ function App() {
                 </div>
                 <p className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Who gets the +5 Bonus?</p>
                 <div className="flex flex-wrap justify-center gap-4 mb-10">
-                  {teams.map((t, i) => <button key={t.id} onClick={() => setWinners(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id])} className={`px-8 py-4 rounded-2xl font-black text-white border-4 transition-all ${winners.includes(t.id) ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-40'}`} style={{background: (i % 2 === 0 ? BLUE : PURPLE)}}><span className="mr-2">{t.icon}</span><span className="team-name-display inline-block">{t.name}</span></button>)}
+                  {teams.map((t, i) => <button key={t.id} onClick={() => { audio.pop(); setWinners(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]); }} className={`px-8 py-4 rounded-2xl font-black text-white border-4 transition-all ${winners.includes(t.id) ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-40'}`} style={{background: (i % 2 === 0 ? BLUE : PURPLE)}}><span className="mr-2">{t.icon}</span><span className="team-name-display inline-block">{t.name}</span></button>)}
                 </div>
                 <button onClick={handleCorrectAnswerConfirmation} className="px-12 py-5 rounded-2xl font-black text-white bg-green-600 shadow-xl hover:scale-105 active:scale-95 transition-all">{winners.length ? 'GET BONUS & DECIDE BOX' : 'NOBODY GOT IT'}</button>
               </div>
