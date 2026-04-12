@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mind Your Decisions!</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; }
+    body { font-family: 'Outfit', sans-serif; background: #0f172a; color: #e2e8f0; overflow: hidden; }
+    #root { overflow: auto; }
+    .glass-strong { background: rgba(30,41,59,0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+    .shimmer-text {
+      background: linear-gradient(90deg, #45a3e5, #864cbf, #66bf39, #45a3e5);
+      background-size: 200% 100%;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; animation: shimmer 3s linear infinite;
+    }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    .anim-pop { animation: pop-in 0.4s ease-out forwards; }
+    @keyframes pop-in { 0%{transform:scale(0.5);opacity:0} 60%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    @keyframes score-float-up {
+      0% { transform: translateY(0); opacity: 0; }
+      20% { transform: translateY(-10px); opacity: 1; }
+      80% { transform: translateY(-30px); opacity: 1; }
+      100% { transform: translateY(-50px); opacity: 0; }
+    }
+    .score-float {
+      position: absolute;
+      pointer-events: none;
+      font-weight: 900;
+      font-size: 1.5rem;
+      animation: score-float-up 1.5s ease-out forwards;
+      z-index: 50;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    .btn-keep { background: linear-gradient(135deg, #66bf39, #4a9e20); }
+    .btn-give { background: linear-gradient(135deg, #ff3355, #cc1a3a); }
+    .btn-abstain { background: linear-gradient(135deg, #64748b, #475569); }
+    
+    .team-name-display {
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
+      display: inline-block;
+    }
+    
+    .winner-glow {
+      box-shadow: 0 0 50px rgba(102, 191, 57, 0.3);
+      border-color: #66bf39 !important;
+    }
+
+    .log-entry { animation: slide-in-left 0.3s ease-out forwards; }
+    @keyframes slide-in-left { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    .mystery-tile {
+        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .mystery-tile:hover:not(.used) {
+        transform: translateY(-4px) scale(1.05);
+        border-color: rgba(69, 163, 229, 0.5);
+        box-shadow: 0 0 25px rgba(69, 163, 229, 0.3);
+    }
+    .mystery-tile.used {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border-color: transparent !important;
+        opacity: 0.15;
+        box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+        cursor: default;
+    }
+  </style>
+ </head>
+ <body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const BLUE = '#45a3e5'; const PURPLE = '#864cbf'; const GREEN = '#66bf39'; const ORANGE = '#eb670f'; const RED = '#ff3355';
+const ANIMAL_ICONS = ["🦁", "🐼", "🐸", "🦊", "🐨", "🐯", "🐵", "🐧", "🐷", "🦋", "🦖", "🦄"];
+
+const defaultQuestionsStr = `The total measure of all the outer faces of a solid figure. | | | | | Surface Area
+A graph that shows parts of a whole using sections of a circle. | | | | | Pie chart
+The rate at which an object moves from one place to another. | | | | | Speed
+The amount of space occupied inside a three-dimensional figure. | | | | | Volume
+A figure formed by combining two or more simple plane figures. | | | | | Composite Figure
+The length of space traveled by a moving object. | | | | | Distance
+The duration of an event or how long it takes to travel a certain distance. | | | | | Time
+The complete amount represented in a pie chart, usually equal to 100%. | | | | | Whole
+A solid figure with two circular bases and a curved surface. | | | | | Cylinder
+A specific part or slice of a circle in a pie chart. | | | | | Sector`;
+
+// --- Enhanced Math Rendering ---
+const formatMath = (text) => {
+  if (!text) return "";
+  let str = String(text);
+
+  const supers = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','=':'⁼','(':'⁽',')':'⁾','n':'ⁿ' };
+  const subs = { '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','+':'₊','-':'₋','=':'₌','(':'₍',')':'₎' };
+
+  return str
+    .replace(/pi\b/gi, 'π')
+    .replace(/sqrt\(([^)]+)\)/g, '√$1')
+    .replace(/\b1\/2\b/g, '½')
+    .replace(/\b1\/3\b/g, '⅓')
+    .replace(/\b1\/4\b/g, '¼')
+    .replace(/\b3\/4\b/g, '¾')
+    // Handle explicit ^ notation: x^10 -> x¹⁰
+    .replace(/\^([0-9+\-=\(\)n]+)/g, (m, p) => p.split('').map(c => supers[c] || c).join(''))
+    // Handle explicit _ notation: H_2O -> H₂O
+    .replace(/_([0-9+\-=\(\)]+)/g, (m, p) => p.split('').map(c => subs[c] || c).join(''))
+    // Smart Shorthand: Only convert 2 and 3 if preceded by a LETTER (for units like m2, cm3)
+    .replace(/([a-zA-Z])2(?!\d)/g, '$1²')
+    .replace(/([a-zA-Z])3(?!\d)/g, '$1³');
+};
+
+class AudioController {
+  constructor() {
+    this.ctx = null; this.muted = false;
+    this.bgMusic = new Audio('GameBG.mp3');
+    this.bgMusic.loop = true; this.bgMusic.volume = 0.4;
+    this.celebMusic = new Audio('GameOver.mp3');
+    this.celebMusic.volume = 0.6; this.celebMusic.loop = false;
+  }
+  init() { 
+    if (this.ctx) return; 
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+  }
+  setMute(m) { this.muted = m; this.bgMusic.muted = m; this.celebMusic.muted = m; }
+  _osc(type, freq, dur, gain = 0.1, delay = 0) {
+    if(!this.ctx || this.muted) return;
+    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, this.ctx.currentTime + delay);
+    g.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + delay + 0.01);
+    g.gain.linearRampToValueAtTime(0, this.ctx.currentTime + delay + dur);
+    o.connect(g); g.connect(this.ctx.destination); o.start(this.ctx.currentTime + delay); o.stop(this.ctx.currentTime + delay + dur);
+  }
+  tick() { this._osc('square', 800, 0.04); }
+  ding() { this._osc('sine', 880, 0.15, 0.2); this._osc('sine', 1320, 0.2, 0.15, 0.08); }
+  pop() { this._osc('sine', 600, 0.05, 0.1); }
+  whoop() { 
+    if(!this.ctx || this.muted) return;
+    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(200, this.ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(1000, this.ctx.currentTime + 0.3);
+    g.gain.setValueAtTime(0.1, this.ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
+    o.connect(g); g.connect(this.ctx.destination); o.start(); o.stop(this.ctx.currentTime + 0.3);
+  }
+  reveal() { for(let i=0; i<6; i++) this._osc('sine', 400+i*150, 0.15, 0.1, i*0.06); }
+  startMusic() { this.stopEnd(); this.bgMusic.currentTime = 0; this.bgMusic.play().catch(() => {}); }
+  stopMusic() { this.bgMusic.pause(); }
+  playEnd() { this.stopMusic(); this.celebMusic.currentTime = 0; this.celebMusic.play().catch(() => {}); }
+  stopEnd() { this.celebMusic.pause(); this.celebMusic.currentTime = 0; }
+}
+const audio = new AudioController();
+
+function RollingNumber({ target }) {
+  const [display, setDisplay] = useState(target);
+  useEffect(() => {
+    if (display === target) return;
+    const step = target > display ? 1 : -1;
+    const timer = setInterval(() => {
+      setDisplay(prev => {
+        if (prev === target) { clearInterval(timer); return prev; }
+        const diff = target - prev;
+        const move = step * Math.max(1, Math.ceil(Math.abs(diff) / 10));
+        if ((step > 0 && prev + move >= target) || (step < 0 && prev + move <= target)) { clearInterval(timer); return target; }
+        return prev + move;
+      });
+    }, 30);
+    return () => clearInterval(timer);
+  }, [target]);
+  return <span>{display}</span>;
+}
+
+function Setup({ onStart }) {
+  const [step, setStep] = useState(1);
+  const [teams, setTeams] = useState([{ name: 'Group 1', icon: '🦁' }, { name: 'Group 2', icon: '🐼' }]);
+  const [qsIn, setQsIn] = useState(defaultQuestionsStr);
+  const [school, setSchool] = useState('');
+  const [teacher, setTeacher] = useState('');
+  const [minPts, setMinPts] = useState('-100');
+  const [maxPts, setMaxPts] = useState('500');
+  const [showEditor, setShowEditor] = useState(false);
+  const [fileStatus, setFileStatus] = useState('');
+  const fileRef = useRef(null);
+
+  const downloadCSV = () => {
+    const content = "Question, Option A, Option B, Option C, Option D, Correct Answer\nWhat is 1/2 of 10?, 2, 5, 8, 10, 5";
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'quiz_template.csv'; a.click();
+  };
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls') {
+      reader.onload = (ev) => {
+        try {
+          const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+          const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { FS: '|' });
+          setQsIn(csv);
+          setFileStatus(`Excel file loaded!`);
+          setTimeout(() => setFileStatus(''), 3000);
+        } catch (err) { setFileStatus('Error reading Excel.'); }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = (ev) => { setQsIn(ev.target.result); setFileStatus(`CSV file loaded!`); setTimeout(() => setFileStatus(''), 3000); };
+      reader.readAsText(file);
+    }
+  };
+
+  const generatePointsPool = (min, max) => {
+    const minVal = parseInt(min) || 0;
+    const maxVal = parseInt(max) || 100;
+    const pool = [];
+    const count = 15;
+    const rangeVal = (maxVal - minVal) / (count - 1);
+    for (let i = 0; i < count; i++) {
+        pool.push(Math.round(minVal + (rangeVal * i)));
+    }
+    [0, 50, 100, -50].forEach(v => {
+        if(v >= minVal && v <= maxVal && !pool.includes(v)) pool.push(v);
+    });
+    return pool;
+  };
+
+  const parseQuestions = (text) => {
+    const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+    return lines.map((line, index) => {
+        const delimiter = line.includes('|') ? '|' : ',';
+        const cols = line.split(delimiter).map(c => c.trim());
+        if (index === 0 && (cols[0].toLowerCase().includes('question') || cols[cols.length-1].toLowerCase().includes('answer'))) return null;
+        if (cols.length >= 6) {
+            const q = formatMath(cols[0]);
+            const opts = cols.slice(1, 5).filter(o => o !== "").map(formatMath);
+            const a = formatMath(cols[5]);
+            return opts.length > 0 ? { q, options: opts, a } : { q, a };
+        } else if (cols.length >= 2) {
+            return { q: formatMath(cols[0]), a: formatMath(cols[cols.length - 1]) };
+        }
+        return null;
+    }).filter(Boolean);
+  };
+
+  return (
+    <div className="h-full w-full flex items-center justify-center p-4 bg-[#0f172a] overflow-y-auto no-scrollbar">
+      <div className="glass-strong rounded-3xl p-8 max-w-2xl w-full border border-white/10 shadow-2xl anim-pop">
+        <h1 className="text-4xl font-black mb-2 text-center shimmer-text uppercase tracking-tighter">Mind Your Decisions!</h1>
+        <p className="text-center text-slate-400 text-sm mb-6 uppercase font-bold tracking-[0.2em]">{step === 1 ? 'Step 1: Game Settings' : 'Step 2: Setup Groups'}</p>
+
+        <div className="space-y-6">
+          {step === 1 && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">School Name</label>
+                  <input value={school} onChange={e => setSchool(e.target.value)} className="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="e.g. Center for Brighter Beginnings" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Teacher Name</label>
+                  <input value={teacher} onChange={e => setTeacher(e.target.value)} className="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="e.g. Teacher MJ" />
+                </div>
+              </div>
+
+              <div className="bg-slate-900/40 p-4 rounded-2xl border border-white/5 space-y-3">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Mystery Box Point Range</label>
+                <div className="flex items-center gap-3">
+                    <input type="number" value={minPts} onChange={e => setMinPts(e.target.value)} className="flex-1 bg-slate-800 p-2.5 rounded-xl border border-slate-700 text-center font-bold text-red-400" placeholder="Min" />
+                    <span className="text-slate-500 font-bold">to</span>
+                    <input type="number" value={maxPts} onChange={e => setMaxPts(e.target.value)} className="flex-1 bg-slate-800 p-2.5 rounded-xl border border-slate-700 text-center font-bold text-green-400" placeholder="Max" />
+                </div>
+              </div>
+
+              <div className="border-t border-white/5 pt-4">
+                <div className="flex justify-between items-center mb-4">
+                    <button onClick={() => setShowEditor(!showEditor)} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{showEditor ? '▾ Hide Quiz Tools' : '▸ Open Quiz Editor'}</button>
+                    {fileStatus && <p className="text-green-400 text-[10px] font-bold">{fileStatus}</p>}
+                </div>
+                {showEditor && (
+                    <div className="flex flex-col sm:flex-row gap-3 anim-pop">
+                        <button onClick={downloadCSV} className="flex-1 text-[9px] bg-slate-700 py-3 rounded-xl text-white uppercase font-black tracking-wider shadow-lg active:scale-95 transition-all">Download Template</button>
+                        <button onClick={() => fileRef.current.click()} className="flex-1 text-[9px] bg-blue-600 py-3 rounded-xl text-white uppercase font-black tracking-wider shadow-lg active:scale-95 transition-all">Upload Questions</button>
+                        <input type="file" ref={fileRef} className="hidden" accept=".csv,.txt,.xlsx,.xls" onChange={handleFile}/>
+                    </div>
+                )}
+              </div>
+
+              <button onClick={() => { audio.ding(); setStep(2); }} className="w-full py-4 rounded-2xl font-black text-lg text-white bg-slate-800 border border-slate-700 shadow-xl active:scale-95 transition-all hover:bg-slate-750">Next: Setup Teams ➜</button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {teams.map((t, i) => (
+                  <div key={i} className="flex gap-2 items-center bg-slate-900/50 p-2 rounded-xl border border-slate-700">
+                    <select value={t.icon} onChange={e => { const n = [...teams]; n[i].icon = e.target.value; setTeams(n); }} className="bg-slate-800 text-lg rounded-lg outline-none">{ANIMAL_ICONS.map(icon => <option key={icon}>{icon}</option>)}</select>
+                    <input value={t.name} maxLength={15} onChange={e => { const n = [...teams]; n[i].name = e.target.value; setTeams(n); }} className="flex-1 bg-transparent text-white text-sm focus:outline-none font-bold" placeholder="Team Name"/>
+                    {teams.length > 2 && <button onClick={() => setTeams(teams.filter((_, idx) => idx !== i))} className="text-slate-600 px-2 hover:text-red-400">✕</button>}
+                  </div>
+                ))}
+                {teams.length < 6 && <button onClick={() => setTeams([...teams, { name: `Group ${teams.length + 1}`, icon: ANIMAL_ICONS[teams.length % ANIMAL_ICONS.length] }])} className="py-2 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm font-bold hover:border-blue-500 transition-all">+ Add Group</button>}
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={() => setStep(1)} className="flex-1 py-4 rounded-2xl font-black text-slate-400 bg-slate-900 border border-slate-700 active:scale-95 transition-all hover:text-white">Back</button>
+                <button onClick={() => {
+                        audio.init();
+                        const parsedQs = parseQuestions(qsIn);
+                        const pointsPool = generatePointsPool(minPts, maxPts);
+                        onStart(teams, parsedQs, pointsPool, school, teacher);
+                    }} className="flex-[2] py-4 rounded-2xl font-black text-xl text-white shadow-2xl active:scale-95 transition-all hover:scale-[1.01]" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>START QUIZ</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Scoreboard({ teams, scoreEffects }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between px-6 py-4 glass-strong rounded-2xl mb-4 border border-white/5 shadow-lg gap-4 relative">
+      <div className="flex flex-wrap gap-6 items-center flex-1">
+        {teams.map((t, i) => (
+          <div key={t.id} className="flex flex-col items-center relative">
+            {scoreEffects[t.id]?.map(eff => (
+              <div key={eff.id} className="score-float" style={{ color: eff.pts >= 0 ? GREEN : RED }}>{eff.pts >= 0 ? `+${eff.pts}` : eff.pts}</div>
+            ))}
+            <span className="text-xl mb-1">{t.icon}</span>
+            <span className="font-bold text-[10px] uppercase opacity-70 team-name-display" style={{color: (i % 2 === 0 ? BLUE : PURPLE)}}>{t.name}</span>
+            <span className={`font-black text-2xl transition-all ${t.score < 0 ? 'text-red-500' : (t.score > 0 ? 'text-green-500' : 'text-white')}`}><RollingNumber target={t.score} /></span>
+          </div>
+        ))}
+      </div>
+      <div className="text-center">
+        <h2 className="text-sm font-black shimmer-text uppercase">Mind Your Decisions!</h2>
+        <button onClick={() => audio.setMute(!audio.muted)} className="text-[10px] text-slate-500 uppercase font-bold mt-1 bg-slate-800 px-2 py-1 rounded-lg">{audio.muted ? '🔇' : '🔊'}</button>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [state, setState] = useState('setup');
+  const [teams, setTeams] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [pointPool, setPointPool] = useState([]);
+  const [used, setUsed] = useState(new Set());
+  const [currentQ, setCurrentQ] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanTile, setScanTile] = useState(null);
+  const [selectedTile, setSelectedTile] = useState(null);
+  const [timer, setTimer] = useState(60);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [winners, setWinners] = useState([]);
+  const [revealResults, setRevealResults] = useState([]);
+  const [scoreEffects, setScoreEffects] = useState({});
+  const [logs, setLogs] = useState([]);
+  const [sessionConfig, setSessionConfig] = useState({ school: '', teacher: '' });
+  const timerRef = useRef(null);
+
+  const addLog = (msg) => {
+    setLogs(prev => [ { id: Date.now(), msg }, ...prev ].slice(0, 5));
+  };
+
+  const startGame = (tData, qs, pts, school, teacher) => {
+    audio.startMusic();
+    setTeams(tData.map((t, i) => ({ ...t, id: i + 1, score: 0 })));
+    setQuestions(qs.sort(() => Math.random() - 0.5));
+    setPointPool(pts); 
+    setSessionConfig({ school: school || 'Center for Brighter Beginnings', teacher: teacher || 'Teacher MJ' });
+    setUsed(new Set()); setWinners([]); setScoreEffects({}); setLogs([]);
+    setState('board');
+    addLog("Session Started!");
+  };
+
+  const pickRandom = () => {
+    const available = Array.from({length: questions.length}, (_, i) => i + 1).filter(n => !used.has(n));
+    if(!available.length) return;
+    setScanning(true); setSelectedTile(null);
+    let count = 0;
+    const interval = setInterval(() => {
+      setScanTile(available[Math.floor(Math.random() * available.length)]);
+      audio.tick(); count++;
+      if(count >= 15) { clearInterval(interval); setSelectedTile(available[Math.floor(Math.random() * available.length)]); setScanning(false); audio.ding(); }
+    }, 80);
+  };
+
+  const triggerScoreEffect = (teamId, pts) => {
+    const id = Date.now() + Math.random();
+    setScoreEffects(prev => ({ ...prev, [teamId]: [...(prev[teamId] || []), { id, pts }] }));
+    const colors = pts >= 0 ? [GREEN, BLUE] : [RED, ORANGE];
+    confetti({ particleCount: 20, spread: 60, origin: { y: 0.6 }, colors });
+    setTimeout(() => { setScoreEffects(prev => ({ ...prev, [teamId]: (prev[teamId] || []).filter(e => e.id !== id) })); }, 1500);
+  };
+
+  useEffect(() => {
+    if (!timerRunning) return;
+    timerRef.current = setInterval(() => { setTimer(t => { if (t <= 1) { clearInterval(timerRef.current); setTimerRunning(false); return 0; } return t - 1; }); }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [timerRunning]);
+
+  const processFinalScores = () => {
+    audio.reveal();
+    const next = [...teams];
+    
+    // First, reward everyone who answered correctly with their +5 points
+    winners.forEach(id => {
+      const team = next.find(t => t.id === id);
+      team.score += 5;
+      triggerScoreEffect(id, 5);
+      addLog(`${team.name} gained +5 Bonus.`);
+    });
+
+    // Determine who chose to abstain so they can be excluded from "Give" points
+    const abstainedTeams = revealResults.filter(r => r.choice === 'abstain').map(r => r.teamId);
+
+    revealResults.forEach(r => {
+      const team = next.find(t => t.id === r.teamId);
+      if(r.choice === 'keep') { 
+        team.score += r.pts; 
+        triggerScoreEffect(r.teamId, r.pts);
+        addLog(`${team.name} kept ${r.pts >= 0 ? '+' : ''}${r.pts} points.`);
+      } else if (r.choice === 'give') { 
+        // Others get points EXCLUDING teams that abstained
+        const others = next.filter(t => t.id !== r.teamId && !abstainedTeams.includes(t.id));
+        others.forEach(t => { 
+          t.score += r.pts; 
+          triggerScoreEffect(t.id, r.pts);
+        }); 
+        addLog(`${team.name} gave ${r.pts >= 0 ? '+' : ''}${r.pts} to others!`);
+      } else if (r.choice === 'abstain') {
+        // They receive no points from the box.
+        addLog(`${team.name} abstained from the box.`);
+      }
+    });
+    
+    setTeams(next); 
+    setUsed(prev => new Set([...prev, selectedTile])); 
+    setSelectedTile(null); 
+    setRevealResults([]); 
+    setWinners([]); 
+    setState('board');
+  };
+
+  const handleCorrectAnswerConfirmation = () => {
+    if(!winners.length) { 
+        setUsed(prev => new Set([...prev, selectedTile])); 
+        setSelectedTile(null); 
+        setState('board'); 
+        addLog(`No winners for Box #${selectedTile}.`);
+        return; 
+    }
+    audio.ding();
+    confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 }, colors: [GREEN, BLUE, PURPLE] });
+    setState('decision');
+  };
+
+  const handleBulkDecision = (choice) => {
+    audio.ding();
+    const bulkResults = winners.map(id => ({
+      teamId: id,
+      choice: choice,
+      pts: pointPool[Math.floor(Math.random() * pointPool.length)]
+    }));
+    setRevealResults(bulkResults);
+    setTimeout(() => setState('reveal'), 600);
+  };
+
+const printCertificate = () => {
+  const sorted = [...teams].sort((a, b) => b.score - a.score);
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const win = window.open('', '_blank');
+
+  // ==================== FULL RESULTS ====================
+  let teamsHTML = '';
+  sorted.forEach((t, i) => {
+    const isWinner = i === 0;
+    teamsHTML += `
+      <div style="display: flex; align-items: center; margin: 18px 0; padding: 12px 24px; background: ${isWinner ? '#fefce8' : '#f8fafc'}; border-radius: 9999px; border: 3px solid ${isWinner ? '#eab308' : '#e2e8f0'}; box-shadow: ${isWinner ? '0 10px 15px -3px rgb(234 179 8)' : 'none'};">
+        <div style="font-size: 42px; margin-right: 20px;">${t.icon}</div>
+        <div style="flex: 1; text-align: left;">
+          <span style="font-size: 18px; font-weight: 900; color: ${isWinner ? '#ca8a04' : '#334155'};">#${i+1}</span>
+          <span style="font-size: 28px; font-weight: 900; margin-left: 12px; color: #1e2937;">${t.name}</span>
+        </div>
+        <div style="font-size: 32px; font-weight: 900; color: ${t.score >= 0 ? '#166534' : '#991b1b'};">${t.score}</div>
+        ${isWinner ? `<div style="margin-left: 20px; background: #eab308; color: #1e2937; font-size: 14px; font-weight: 900; padding: 4px 16px; border-radius: 9999px; white-space: nowrap;">CHAMPION 🏆</div>` : ''}
+      </div>
+    `;
+  });
+
+  // ==================== INDIVIDUAL CERTIFICATES ====================
+  let individualHTML = '';
+  sorted.forEach((t, i) => {
+    const rank = i + 1;
+    const isWinner = rank === 1;
+    const title = isWinner ? 'Champion Certificate' : 'Certificate of Achievement';
+
+    individualHTML += `
+      <div style="page-break-before: always; border: 25px double #334155; padding: 70px 60px; text-align: center; margin-top: 40px;">
+        <div style="font-size: 18px; font-weight: 900; letter-spacing: 0.25em; color: #64748b; margin-bottom: 10px;">
+          ${sessionConfig.school || 'School Name'}
+        </div>
+        <h1 style="font-size: 48px; margin: 0 0 20px; font-weight: 900; text-transform: uppercase; color: #1e2937;">
+          ${title}
+        </h1>
+        <p style="font-size: 22px; color: #475569; margin-bottom: 40px;">Mind Your Decisions!</p>
+        
+        <div style="font-size: 80px; margin: 30px 0;">${t.icon}</div>
+        <div style="font-size: 42px; font-weight: 900; color: #1e2937; margin-bottom: 8px;">${t.name}</div>
+        
+        <div style="display: inline-block; background: ${isWinner ? '#fefce8' : '#f1f5f9'}; color: ${isWinner ? '#ca8a04' : '#334155'}; padding: 8px 28px; border-radius: 9999px; font-size: 18px; font-weight: 900; margin-bottom: 30px;">
+          ${isWinner ? '🥇 CHAMPION' : `Rank #${rank}`}
+        </div>
+        
+        <p style="font-size: 24px; color: #1e2937; margin: 20px 0 40px;">
+          with a final score of <strong style="font-size: 32px;">${t.score}</strong>
+        </p>
+        
+        <div style="margin-top: 80px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 18px;">
+          <div style="text-align: left;">
+            Certified by<br>
+            <strong style="border-bottom: 3px solid #cbd5e1; padding-bottom: 4px;">${sessionConfig.teacher || 'Teacher'}</strong>
+          </div>
+          <div style="text-align: right; color: #64748b;">
+            ${today}<br>
+            Congratulations!
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>Certificates - Mind Your Decisions!</title>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;900&display=swap" rel="stylesheet">
+        <style>
+          @page { margin: 0; size: A4 portrait; }
+          body { 
+            font-family: 'Outfit', sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background: white; 
+            color: black; 
+          }
+        </style>
+      </head>
+      <body>
+        <!-- FULL RESULTS PAGE -->
+        <div style="max-width: 1000px; margin: 40px auto; border: 25px double #334155; padding: 60px 50px; text-align: center;">
+          <div style="text-transform: uppercase; font-weight: 900; letter-spacing: 0.25em; color: #64748b; font-size: 18px; margin-bottom: 10px;">
+            ${sessionConfig.school || 'School Name'}
+          </div>
+          <h1 style="font-size: 52px; margin: 0 0 8px; text-transform: uppercase; font-weight: 900;">Final Results</h1>
+          <div style="font-size: 24px; color: #475569; margin-bottom: 40px;">Mind Your Decisions! • ${today}</div>
+          
+          <div style="margin-top: 30px;">
+            ${teamsHTML}
+          </div>
+
+          <div style="margin-top: 70px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 18px;">
+            <div style="border-top: 3px solid #cbd5e1; padding-top: 8px; width: 280px; text-align: left; font-weight: 600;">
+              Certified by<br><strong>${sessionConfig.teacher || 'Teacher'}</strong>
+            </div>
+            <div style="text-align: right; font-size: 15px; color: #64748b;">
+              Printed on ${today}<br>
+              Congratulations to all participants!
+            </div>
+          </div>
+        </div>
+
+        <!-- INDIVIDUAL CERTIFICATES -->
+        ${individualHTML}
+
+        <script>
+          setTimeout(() => { 
+            window.print(); 
+            window.close(); 
+          }, 1000);
+        <\/script>
+      </body>
+    </html>
+  `);
+  win.document.close();
+};
+
+  const finalWinner = [...teams].sort((a,b) => b.score - a.score)[0];
+
+  return (
+    <div className="h-full w-full flex flex-col p-4 bg-[#0f172a] select-none no-scrollbar overflow-hidden">
+      {state === 'setup' && <Setup onStart={startGame} />}
+      {state !== 'setup' && (
+        <div className="max-w-6xl w-full mx-auto h-full flex flex-col">
+          <Scoreboard teams={teams} scoreEffects={scoreEffects} />
+          <div className="flex-1 overflow-auto no-scrollbar py-4 relative">
+            
+            {state === 'board' && (
+              <div className="h-full flex flex-col justify-center relative">
+                <div className="absolute left-0 top-0 w-44 h-full hidden lg:flex flex-col gap-2 p-2 opacity-40">
+                    <h4 className="text-[9px] font-black uppercase text-slate-500 tracking-widest border-b border-white/5 pb-1">Activity Log</h4>
+                    <div className="flex flex-col gap-1.5 overflow-hidden">
+                        {logs.map(log => (
+                            <div key={log.id} className="log-entry text-[9px] text-slate-400 leading-tight">• {log.msg}</div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid gap-2.5 mb-8 mx-auto w-full max-w-[850px]" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${questions.length > 25 ? '50px' : '65px'}, 1fr))` }}>
+                  {questions.map((_, i) => {
+                    const n = i + 1; const isUsed = used.has(n); const isScan = scanning && scanTile === n; const isSel = !scanning && selectedTile === n;
+                    return (
+                        <div key={n} className={`mystery-tile rounded-2xl border flex items-center justify-center aspect-square font-black text-lg transition-all relative ${isUsed ? 'used' : 'bg-slate-800/40 border-white/5 text-white shadow-lg'}`} style={isScan ? {background:ORANGE, color:'white'} : (isSel ? {background:GREEN, boxShadow:`0 0 30px ${GREEN}`} : {})}>
+                            {n}
+                            {isUsed && <span className="absolute bottom-1 right-1 text-[8px] opacity-60">✓</span>}
+                        </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="flex flex-col items-center mt-8 gap-4">
+                  {!selectedTile && !scanning && <button onClick={pickRandom} className="px-14 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl active:scale-95 transition-all hover:scale-105" style={{background:`linear-gradient(135deg,${ORANGE},${RED})`}}>PICK A BOX</button>}
+                  {selectedTile && !scanning && <button onClick={() => { audio.whoop(); setCurrentQ(questions[selectedTile - 1]); setTimer(60); setTimerRunning(true); setState('question'); }} className="px-14 py-6 rounded-2xl font-black text-white text-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${GREEN},#4a9e20)`}}>OPEN BOX #{selectedTile}</button>}
+                  {!scanning && <button onClick={() => { audio.playEnd(); confetti(); setState('endgame'); }} className="text-slate-500 font-bold uppercase text-[9px] tracking-[0.2em] mt-6 hover:text-white transition-all cursor-pointer">Finish Session</button>}
+                </div>
+              </div>
+            )}
+
+            {state === 'question' && (
+              <div className="flex flex-col items-center justify-center h-full anim-pop px-4 text-center overflow-y-auto no-scrollbar">
+                <div className={`text-7xl font-black mb-6 ${timer <= 5 ? 'text-red-500 anim-pulse-red' : 'text-green-500'}`}>{timer}s</div>
+                <div className="glass-strong rounded-[2.5rem] p-10 max-w-3xl w-full border border-white/5 shadow-2xl">
+                  <p className="text-3xl font-bold leading-relaxed mb-8 whitespace-pre-line">{currentQ.q}</p>
+                  {currentQ.options && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{currentQ.options.map((opt, idx) => <div key={idx} className="bg-slate-800/50 p-4 rounded-2xl border border-white/10 flex items-center gap-4 text-left"><span className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-black text-white text-sm shrink-0">{String.fromCharCode(65 + idx)}</span><span className="text-lg font-medium text-slate-200">{opt}</span></div>)}</div>}
+                </div>
+                <button onClick={() => { audio.reveal(); setState('answer'); setTimerRunning(false); }} className="px-12 py-5 rounded-2xl font-black text-white text-2xl shadow-2xl mt-8" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>REVEAL ANSWER</button>
+              </div>
+            )}
+
+            {state === 'answer' && (
+              <div className="flex flex-col items-center justify-center h-full anim-pop px-4 text-center">
+                <div className="glass-strong rounded-[2.5rem] p-12 max-w-3xl w-full border border-white/5 shadow-2xl mb-10">
+                  <p className="text-5xl font-black text-white mb-6">{currentQ.a}</p>
+                  <div className="h-2 w-24 bg-green-500 mx-auto rounded-full"></div>
+                </div>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Assign +5 Bonus Points</p>
+                <div className="flex flex-wrap justify-center gap-4 mb-10">
+                  {teams.map((t, i) => <button key={t.id} onClick={() => { audio.pop(); setWinners(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]); }} className={`px-8 py-4 rounded-2xl font-black text-white border-4 transition-all ${winners.includes(t.id) ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-30'}`} style={{background: (i % 2 === 0 ? BLUE : PURPLE)}}><span className="mr-2">{t.icon}</span><span className="team-name-display inline-block">{t.name}</span></button>)}
+                </div>
+                <button onClick={handleCorrectAnswerConfirmation} className="px-14 py-6 rounded-2xl font-black text-white bg-green-600 shadow-xl hover:scale-105 active:scale-95 transition-all text-xl">{winners.length ? 'GET BOX & DECIDE' : 'NO ONE GOT IT'}</button>
+              </div>
+            )}
+
+{state === 'decision' && (
+  <div className="flex flex-col items-center justify-start min-h-full px-4 pt-4 pb-12 w-full">
+    
+    {/* === BULK BUTTONS === */}
+    {winners.length > 1 && (
+      <div className="flex flex-wrap gap-4 justify-center mb-8 max-w-xl w-full mx-auto">
+        <button 
+          onClick={() => handleBulkDecision('keep')} 
+          className="flex-1 min-w-[140px] px-6 py-3 bg-green-600 rounded-full text-[11px] font-black text-white uppercase tracking-widest hover:bg-green-500 transition-all shadow-lg border-2 border-green-400/50 active:scale-95"
+        >
+          ALL KEEP
+        </button>
+        <button 
+          onClick={() => handleBulkDecision('give')} 
+          className="flex-1 min-w-[140px] px-6 py-3 bg-red-600 rounded-full text-[11px] font-black text-white uppercase tracking-widest hover:bg-red-500 transition-all shadow-lg border-2 border-red-400/50 active:scale-95"
+        >
+          ALL GIVE
+        </button>
+        <button 
+          onClick={() => handleBulkDecision('abstain')} 
+          className="flex-1 min-w-[140px] px-6 py-3 bg-slate-600 rounded-full text-[11px] font-black text-white uppercase tracking-widest hover:bg-slate-500 transition-all shadow-lg border-2 border-slate-400/50 active:scale-95"
+        >
+          ALL ABSTAIN
+        </button>
+      </div>
+    )}
+
+    {/* === COMPACT CONTENT-AWARE TEAM CARDS === */}
+    <div className="flex flex-wrap gap-6 justify-center items-start max-w-7xl w-full">
+      {winners.map((id, i) => {
+        const t = teams.find(tm => tm.id === id);
+        const isDone = revealResults.some(r => r.teamId === id);
+        const choice = revealResults.find(r => r.teamId === id)?.choice;
+        return (
+          <div 
+            key={id} 
+            className="glass rounded-[2rem] p-6 min-w-[260px] max-w-[360px] flex-1 text-center border border-white/5 shadow-2xl transition-all duration-300"
+            style={{ 
+              background: isDone 
+                ? (choice === 'keep' ? 'rgba(102, 191, 57, 0.4)' : choice === 'give' ? 'rgba(255, 51, 85, 0.4)' : 'rgba(100, 116, 139, 0.4)') 
+                : 'rgba(30, 41, 59, 0.8)' 
+            }}
+          >
+            <span className="text-4xl block mb-2">{t.icon}</span>
+            <h3 
+              className="text-xl font-black mb-6 uppercase tracking-widest team-name-display mx-auto" 
+              style={{color: (isDone ? 'white' : (i % 2 === 0 ? BLUE : PURPLE))}}
+            >
+              {t.name}
+            </h3>
+            <div className="flex flex-col gap-2">
+              <button 
+                disabled={isDone} 
+                onClick={() => { 
+                  audio.ding(); 
+                  const res = [...revealResults, { teamId: id, choice: 'keep', pts: pointPool[Math.floor(Math.random()*pointPool.length)] }]; 
+                  if(res.length === winners.length) { setRevealResults(res); setTimeout(() => setState('reveal'), 600); } 
+                  else setRevealResults(res); 
+                }} 
+                className={`py-3 rounded-xl font-black text-white text-lg transition-all ${choice === 'keep' ? 'bg-white text-green-600 scale-105 shadow-2xl' : (isDone ? 'opacity-0 h-0 p-0 overflow-hidden' : 'btn-keep hover:scale-105')}`}
+              >
+                {choice === 'keep' ? 'KEEPING' : 'KEEP BOX'}
+              </button>
+              <button 
+                disabled={isDone} 
+                onClick={() => { 
+                  audio.ding(); 
+                  const res = [...revealResults, { teamId: id, choice: 'give', pts: pointPool[Math.floor(Math.random()*pointPool.length)] }]; 
+                  if(res.length === winners.length) { setRevealResults(res); setTimeout(() => setState('reveal'), 600); } 
+                  else setRevealResults(res); 
+                }} 
+                className={`py-3 rounded-xl font-black text-white text-lg transition-all ${choice === 'give' ? 'bg-white text-red-600 scale-105 shadow-2xl' : (isDone ? 'opacity-0 h-0 p-0 overflow-hidden' : 'btn-give hover:scale-105')}`}
+              >
+                {choice === 'give' ? 'GIVING' : 'GIVE BOX'}
+              </button>
+              <button 
+                disabled={isDone} 
+                onClick={() => { 
+                  audio.ding(); 
+                  const res = [...revealResults, { teamId: id, choice: 'abstain', pts: pointPool[Math.floor(Math.random()*pointPool.length)] }]; 
+                  if(res.length === winners.length) { setRevealResults(res); setTimeout(() => setState('reveal'), 600); } 
+                  else setRevealResults(res); 
+                }} 
+                className={`py-3 rounded-xl font-black text-white text-lg transition-all ${choice === 'abstain' ? 'bg-white text-slate-600 scale-105 shadow-2xl' : (isDone ? 'opacity-0 h-0 p-0 overflow-hidden' : 'btn-abstain hover:scale-105')}`}
+              >
+                {choice === 'abstain' ? 'ABSTAINING' : 'ABSTAIN'}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+
+            {state === 'reveal' && (
+              <div className="flex flex-col items-center justify-center min-h-full anim-pop px-4 py-8 w-full">
+                <div className="glass-strong rounded-[3rem] p-12 max-w-5xl w-full text-center border border-white/10 shadow-2xl">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                     {revealResults.map((r, i) => (
+                       <div key={i} className={`flex flex-col items-center glass p-6 rounded-2xl border border-white/5 ${r.choice === 'keep' ? 'bg-green-900/20' : (r.choice === 'give' ? 'bg-red-900/20' : 'bg-slate-800/40')}`}>
+                         <span className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 team-name-display">{teams.find(tm => tm.id === r.teamId).name}</span>
+                         <div className={`text-5xl font-black ${r.choice === 'abstain' ? 'text-slate-500 line-through opacity-50' : (r.pts >= 0 ? 'text-green-500' : 'text-red-500')}`}>
+                            Box: {r.pts >= 0 ? '+' : ''}{r.pts}
+                         </div>
+                         {r.choice === 'abstain' && <div className="text-sm font-bold text-slate-400 mt-2">NO EFFECT</div>}
+                         <div className={`text-[10px] font-bold uppercase tracking-widest mt-4 px-4 py-2 rounded-full ${r.choice === 'keep' ? 'bg-green-600 text-white' : (r.choice === 'give' ? 'bg-red-600 text-white' : 'bg-slate-600 text-white')}`}>DECIDED: {r.choice}</div>
+                       </div>
+                     ))}
+                   </div>
+                   <button onClick={processFinalScores} className="w-full py-6 rounded-2xl font-black text-white text-2xl shadow-xl hover:scale-105 active:scale-95 transition-all" style={{background:`linear-gradient(135deg,${BLUE},${PURPLE})`}}>APPLY RESULTS & CONTINUE ➜</button>
+                </div>
+              </div>
+            )}
+
+{state === 'endgame' && (
+  <div className="flex flex-col items-center justify-start h-full px-4 overflow-hidden pt-8 pb-8 text-center">
+    
+    <h1 className="text-5xl md:text-7xl font-black mb-8 shimmer-text uppercase tracking-tighter w-full px-4">
+      {finalWinner.name} Wins!
+    </h1>
+
+    {/* === COMPACT PODIUM (content-aware) === */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 w-full max-w-5xl items-end justify-center">
+      {[...teams].sort((a, b) => b.score - a.score).map((t, i) => (
+        <div 
+          key={t.id} 
+          className={`bg-slate-900/50 p-5 rounded-[2.5rem] border-b-8 shadow-2xl relative transition-all duration-700 ${i === 0 ? 'winner-glow scale-110' : ''}`} 
+          style={{ 
+            borderColor: i === 0 ? GREEN : BLUE, 
+            minHeight: i === 0 ? '240px' : '200px', 
+            order: i === 0 ? 2 : (i === 1 ? 1 : 3)
+          }}
+        >
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 w-12 h-12 rounded-full border-2 border-slate-700 flex items-center justify-center font-black text-slate-400 text-lg">
+            {i + 1}
+          </div>
+          <span className="text-6xl block mb-3 mt-6">{t.icon}</span>
+          <div className="font-bold text-slate-300 text-[10px] uppercase tracking-[0.2em] team-name-display mx-auto">
+            {t.name}
+          </div>
+          <div className={`text-5xl font-black mt-2 ${t.score < 0 ? 'text-red-500' : (t.score > 0 ? 'text-green-500' : 'text-white')}`}>
+            <RollingNumber target={t.score} />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Buttons - always visible at bottom */}
+    <div className="flex flex-wrap gap-4 justify-center mt-auto">
+      <button 
+        onClick={printCertificate} 
+        className="px-16 py-6 rounded-2xl font-black text-white text-2xl bg-blue-600 shadow-xl hover:scale-105 active:scale-95 transition-all"
+      >
+        PRINT CERTIFICATE
+      </button>
+      <button 
+        onClick={() => { audio.stopEnd(); setState('setup'); }} 
+        className="px-16 py-6 rounded-2xl font-black text-white text-2xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-all shadow-xl hover:scale-105"
+      >
+        REPLAY SESSION
+      </button>
+    </div>
+  </div>
+)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+  </script>
+ </body>
+</html>
