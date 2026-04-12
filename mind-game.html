@@ -229,18 +229,15 @@ function Setup({ onStart }) {
     }
   };
 
-  const generatePointsPool = (min, max) => {
+const generatePointsPool = (min, max) => {
     const minVal = parseInt(min) || 0;
     const maxVal = parseInt(max) || 100;
     const pool = [];
-    const count = 15;
-    const rangeVal = (maxVal - minVal) / (count - 1);
-    for (let i = 0; i < count; i++) {
-        pool.push(Math.round(minVal + (rangeVal * i)));
+    
+    for (let i = minVal; i <= maxVal; i++) {
+        pool.push(i);
     }
-    [0, 50, 100, -50].forEach(v => {
-        if(v >= minVal && v <= maxVal && !pool.includes(v)) pool.push(v);
-    });
+    
     return pool;
   };
 
