@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classroom Timer</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet">
+  <style>
+    html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; }
+    body { font-family: 'Outfit', sans-serif; background: #0f172a; color: #e2e8f0; overflow: hidden; }
+    .glass-strong { background: rgba(30,41,59,0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+    .shimmer-text {
+      background: linear-gradient(90deg, #45a3e5, #864cbf, #66bf39, #45a3e5);
+      background-size: 200% 100%;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; animation: shimmer 3s linear infinite;
+    }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    .timer-ring { transform: rotate(-90deg); transform-origin: 50% 50%; }
+    .pulse-urgent { animation: pulse 1s infinite; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); color: #ff3355; } }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  </style>
+ </head>
+ <body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const BLUE = '#45a3e5'; const PURPLE = '#864cbf'; const GREEN = '#66bf39'; const RED = '#ff3355';
+
+class AudioController {
+  constructor() { this.ctx = null; }
+  init() { if (this.ctx) return; this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+  _osc(freq, dur, gain = 0.1) {
+    if(!this.ctx) return;
+    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(gain, this.ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + dur);
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start(); o.stop(this.ctx.currentTime + dur);
+  }
+  tick() { this._osc(800, 0.1, 0.05); }
+  alarm() {
+    for(let i=0; i<3; i++) {
+        setTimeout(() => { this._osc(880, 0.5, 0.2); this._osc(1100, 0.5, 0.2); }, i * 600);
+    }
+  }
+}
+const audio = new AudioController();
+
+function App() {
+  const [state, setState] = useState('setup');
+  // Load from localStorage or defaults
+  const [inputH, setInputH] = useState(() => Number(localStorage.getItem('timer_h')) || 0);
+  const [inputM, setInputM] = useState(() => Number(localStorage.getItem('timer_m')) || 10);
+  const [inputS, setInputS] = useState(() => Number(localStorage.getItem('timer_s')) || 0);
+  
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [totalTime, setTotalTime] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const timerRef = useRef(null);
+
+  // Persistence effect
+  useEffect(() => {
+    localStorage.setItem('timer_h', inputH);
+    localStorage.setItem('timer_m', inputM);
+    localStorage.setItem('timer_s', inputS);
+  }, [inputH, inputM, inputS]);
+
+  const startTimer = () => {
+    audio.init();
+    const total = (parseInt(inputH) * 3600) + (parseInt(inputM) * 60) + parseInt(inputS);
+    if (total <= 0) return;
+    setTotalTime(total);
+    setTimeLeft(total);
+    setIsActive(true);
+    setState('active');
+  };
+
+  useEffect(() => {
+    if (isActive && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            setIsActive(false);
+            audio.alarm();
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+            return 0;
+          }
+          if (prev <= 11) audio.tick();
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isActive, timeLeft]);
+
+  const formatTime = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="h-full w-full flex flex-col items-center justify-center p-6 bg-[#0f172a]">
+      {state === 'setup' && (
+        <div className="glass-strong rounded-[2.5rem] p-10 max-w-lg w-full text-center shadow-2xl animate-in fade-in zoom-in-95 duration-500">
+          <h1 className="text-4xl font-black mb-2 shimmer-text uppercase tracking-tighter">Setup Timer</h1>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] mb-10">Saved for Teacher MJ</p>
+          <div className="flex justify-center gap-4 mb-10">
+            {[ {l: 'Hrs', v: inputH, s: setInputH, m: 24}, {l: 'Min', v: inputM, s: setInputM, m: 59}, {l: 'Sec', v: inputS, s: setInputS, m: 59} ].map((unit, i) => (
+              <div key={i} className="flex flex-col items-center">
+                <input type="number" value={unit.v} onChange={(e) => unit.s(Math.min(unit.m, Math.max(0, parseInt(e.target.value) || 0)))} className="w-20 h-20 bg-slate-900 border border-white/10 rounded-2xl text-3xl font-black text-center text-white focus:border-blue-500 outline-none transition-all" />
+                <span className="text-[10px] font-bold uppercase text-slate-600 mt-2 tracking-widest">{unit.l}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={startTimer} className="w-full py-5 rounded-2xl font-black text-xl text-white shadow-xl active:scale-95 transition-all" style={{background: `linear-gradient(135deg, ${BLUE}, ${PURPLE})`}}>START TIMER</button>
+        </div>
+      )}
+      {state === 'active' && (
+        <div className="relative flex items-center justify-center w-full max-w-2xl h-full">
+          <div className="absolute top-10 flex flex-col items-center">
+             <h2 className="text-sm font-black text-slate-500 uppercase tracking-[0.4em] mb-1">Session Timer</h2>
+             <div className="h-1 w-12 bg-blue-500 rounded-full"></div>
+          </div>
+          <div className="relative flex items-center justify-center">
+            <svg width="400" height="400" className="timer-ring">
+              <circle cx="200" cy="200" r="180" stroke="rgba(255,255,255,0.05)" strokeWidth="12" fill="transparent" />
+              <circle cx="200" cy="200" r="180" stroke={timeLeft <= 10 ? RED : BLUE} strokeWidth="12" fill="transparent" strokeDasharray="1131" strokeDashoffset={1131 - (1131 * (timeLeft / totalTime))} strokeLinecap="round" className="transition-all duration-1000 ease-linear" />
+            </svg>
+            <div className={`absolute flex flex-col items-center ${timeLeft <= 10 ? 'pulse-urgent' : ''}`}>
+               <div className="text-8xl md:text-9xl font-black tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>
+            </div>
+          </div>
+          <div className="absolute bottom-10 flex gap-4">
+            <button onClick={() => setIsActive(!isActive)} className={`px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs ${isActive ? 'bg-slate-800' : 'bg-green-600 shadow-lg'}`}>{isActive ? 'Pause' : 'Resume'}</button>
+            <button onClick={() => { setIsActive(false); setState('setup'); }} className="px-10 py-4 rounded-2xl bg-slate-900 border border-white/10 text-slate-500 font-black uppercase tracking-widest text-xs">Reset</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+ </body>
+</html>
