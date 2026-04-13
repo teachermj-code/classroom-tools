@@ -8,7 +8,6 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet">
   <style>
     html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; }
@@ -21,11 +20,42 @@
       background-clip: text; animation: shimmer 3s linear infinite;
     }
     @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-    .timer-ring { transform: rotate(-90deg); transform-origin: 50% 50%; }
-    .pulse-urgent { animation: pulse 1s infinite; }
-    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); color: #ff3355; } }
+    
+    .timer-ring-container { transform: rotate(-90deg); transform-origin: 50% 50%; }
+    
+    /* The Heartbeat animation - now only used in last 10s */
+    .heartbeat { animation: heartbeat 1s ease-in-out infinite; }
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    .pulse-orange { animation: pulse-orange-anim 1s infinite; }
+    @keyframes pulse-orange-anim { 
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px transparent); } 
+      50% { transform: scale(1.03); filter: drop-shadow(0 0 15px rgba(235,103,15,0.3)); } 
+    }
+
+    .pulse-red { animation: pulse-red-anim 0.5s infinite; }
+    @keyframes pulse-red-anim { 
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px transparent); } 
+      50% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(255,51,85,0.5)); } 
+    }
+    
+    .laser-head {
+        filter: drop-shadow(0 0 8px #fff);
+    }
+
     .no-scrollbar::-webkit-scrollbar { display: none; }
     input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    
+    .time-display {
+      white-space: nowrap;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 320px;
+    }
   </style>
  </head>
  <body>
@@ -33,11 +63,17 @@
   <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const BLUE = '#45a3e5'; const PURPLE = '#864cbf'; const GREEN = '#66bf39'; const RED = '#ff3355';
+const BLUE = '#45a3e5'; const PURPLE = '#864cbf'; const GREEN = '#66bf39'; const ORANGE = '#eb670f'; const RED = '#ff3355';
 
 class AudioController {
-  constructor() { this.ctx = null; }
-  init() { if (this.ctx) return; this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+  constructor() { 
+    this.ctx = null; 
+    this.endSound = new Audio('TimerUp.mp3');
+  }
+  init() { 
+    if (this.ctx) return; 
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+  }
   _osc(freq, dur, gain = 0.1) {
     if(!this.ctx) return;
     const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
@@ -48,17 +84,16 @@ class AudioController {
     o.start(); o.stop(this.ctx.currentTime + dur);
   }
   tick() { this._osc(800, 0.1, 0.05); }
-  alarm() {
-    for(let i=0; i<3; i++) {
-        setTimeout(() => { this._osc(880, 0.5, 0.2); this._osc(1100, 0.5, 0.2); }, i * 600);
-    }
+  playTimerUp() {
+    this.endSound.currentTime = 0;
+    this.endSound.play().catch(e => console.warn("Audio blocked or not found:", e));
   }
 }
 const audio = new AudioController();
 
 function App() {
   const [state, setState] = useState('setup');
-  // Load from localStorage or defaults
+  const [timerName, setTimerName] = useState(() => localStorage.getItem('timer_name') || 'Mission Session');
   const [inputH, setInputH] = useState(() => Number(localStorage.getItem('timer_h')) || 0);
   const [inputM, setInputM] = useState(() => Number(localStorage.getItem('timer_m')) || 10);
   const [inputS, setInputS] = useState(() => Number(localStorage.getItem('timer_s')) || 0);
@@ -68,12 +103,12 @@ function App() {
   const [isActive, setIsActive] = useState(false);
   const timerRef = useRef(null);
 
-  // Persistence effect
   useEffect(() => {
+    localStorage.setItem('timer_name', timerName);
     localStorage.setItem('timer_h', inputH);
     localStorage.setItem('timer_m', inputM);
     localStorage.setItem('timer_s', inputS);
-  }, [inputH, inputM, inputS]);
+  }, [timerName, inputH, inputM, inputS]);
 
   const startTimer = () => {
     audio.init();
@@ -85,6 +120,19 @@ function App() {
     setState('active');
   };
 
+  const handlePreset = (minutes) => {
+    audio.init();
+    if (minutes >= 60) {
+      setInputH(Math.floor(minutes / 60));
+      setInputM(minutes % 60);
+    } else {
+      setInputH(0);
+      setInputM(minutes);
+    }
+    setInputS(0);
+    audio.tick();
+  };
+
   useEffect(() => {
     if (isActive && timeLeft > 0) {
       timerRef.current = setInterval(() => {
@@ -92,8 +140,7 @@ function App() {
           if (prev <= 1) {
             clearInterval(timerRef.current);
             setIsActive(false);
-            audio.alarm();
-            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+            audio.playTimerUp();
             return 0;
           }
           if (prev <= 11) audio.tick();
@@ -113,13 +160,48 @@ function App() {
     return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const getFontSize = () => {
+    const timeStr = formatTime(timeLeft);
+    if (timeStr.length > 5) return 'text-6xl md:text-7xl'; 
+    return 'text-8xl md:text-9xl';
+  };
+
+  const getRingColor = () => {
+    if (timeLeft > 10) return "url(#timerGradient)";
+    if (timeLeft > 5) return ORANGE;
+    return RED;
+  };
+
+  const getPulseClass = () => {
+    if (!isActive || timeLeft > 10) return "";
+    if (timeLeft > 5) return "pulse-orange";
+    return "pulse-red";
+  };
+
+  // SVG Calculations
+  const radius = 180;
+  const circumference = 2 * Math.PI * radius;
+  const progress = totalTime > 0 ? timeLeft / totalTime : 0;
+  const offset = circumference - progress * circumference;
+
   return (
     <div className="h-full w-full flex flex-col items-center justify-center p-6 bg-[#0f172a]">
       {state === 'setup' && (
         <div className="glass-strong rounded-[2.5rem] p-10 max-w-lg w-full text-center shadow-2xl animate-in fade-in zoom-in-95 duration-500">
           <h1 className="text-4xl font-black mb-2 shimmer-text uppercase tracking-tighter">Setup Timer</h1>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] mb-10">Saved for Teacher MJ</p>
-          <div className="flex justify-center gap-4 mb-10">
+          
+          <div className="mt-6 mb-8">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2 text-left ml-2">Activity Name</label>
+            <input 
+              type="text"
+              value={timerName}
+              onChange={(e) => setTimerName(e.target.value)}
+              className="w-full bg-slate-900 border border-white/10 rounded-2xl p-4 text-white font-bold text-center outline-none focus:border-blue-500 transition-all shadow-inner"
+              placeholder="e.g. Recess Countdown"
+            />
+          </div>
+          
+          <div className="flex justify-center gap-4 mb-8">
             {[ {l: 'Hrs', v: inputH, s: setInputH, m: 24}, {l: 'Min', v: inputM, s: setInputM, m: 59}, {l: 'Sec', v: inputS, s: setInputS, m: 59} ].map((unit, i) => (
               <div key={i} className="flex flex-col items-center">
                 <input type="number" value={unit.v} onChange={(e) => unit.s(Math.min(unit.m, Math.max(0, parseInt(e.target.value) || 0)))} className="w-20 h-20 bg-slate-900 border border-white/10 rounded-2xl text-3xl font-black text-center text-white focus:border-blue-500 outline-none transition-all" />
@@ -127,33 +209,92 @@ function App() {
               </div>
             ))}
           </div>
+
+          <div className="flex flex-wrap justify-center gap-3 mb-10">
+            {[1, 5, 10, 15, 60].map((m) => (
+              <button
+                key={m}
+                onClick={() => handlePreset(m)}
+                className="px-6 py-2 rounded-xl bg-slate-800 border border-white/5 text-sm font-black text-slate-400 hover:text-white hover:bg-slate-700 hover:border-white/20 transition-all uppercase tracking-widest"
+              >
+                {m === 60 ? '1h' : m + 'm'}
+              </button>
+            ))}
+          </div>
+
           <button onClick={startTimer} className="w-full py-5 rounded-2xl font-black text-xl text-white shadow-xl active:scale-95 transition-all" style={{background: `linear-gradient(135deg, ${BLUE}, ${PURPLE})`}}>START TIMER</button>
         </div>
       )}
       {state === 'active' && (
         <div className="relative flex items-center justify-center w-full max-w-2xl h-full">
           <div className="absolute top-10 flex flex-col items-center">
-             <h2 className="text-sm font-black text-slate-500 uppercase tracking-[0.4em] mb-1">Session Timer</h2>
-             <div className="h-1 w-12 bg-blue-500 rounded-full"></div>
+             <h2 className={`text-sm font-black uppercase tracking-[0.4em] mb-1 transition-colors ${timeLeft <= 5 ? 'text-red-500' : timeLeft <= 10 ? 'text-orange-500' : 'text-slate-500'}`}>
+               {timerName}
+             </h2>
+             <div className={`h-1 w-12 rounded-full transition-colors ${timeLeft <= 5 ? 'bg-red-500 shadow-[0_0_10px_#ff3355]' : timeLeft <= 10 ? 'bg-orange-500 shadow-[0_0_10px_#eb670f]' : 'bg-blue-500'}`}></div>
           </div>
-          <div className="relative flex items-center justify-center">
-            <svg width="400" height="400" className="timer-ring">
+          
+          <div className={`relative flex items-center justify-center transition-all ${getPulseClass()}`}>
+            {/* The SVG and Ring */}
+            <svg width="400" height="400" viewBox="0 0 400 400" className="timer-ring-container w-[320px] h-[320px] md:w-[400px] md:h-[400px]">
+              <defs>
+                <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor={BLUE} />
+                  <stop offset="100%" stopColor={PURPLE} />
+                </linearGradient>
+              </defs>
+              
+              {/* Background Track */}
               <circle cx="200" cy="200" r="180" stroke="rgba(255,255,255,0.05)" strokeWidth="12" fill="transparent" />
-              <circle cx="200" cy="200" r="180" stroke={timeLeft <= 10 ? RED : BLUE} strokeWidth="12" fill="transparent" strokeDasharray="1131" strokeDashoffset={1131 - (1131 * (timeLeft / totalTime))} strokeLinecap="round" className="transition-all duration-1000 ease-linear" />
+              
+              {/* Progress Bar */}
+              <circle 
+                cx="200" cy="200" r="180" 
+                stroke={getRingColor()} 
+                strokeWidth="12" 
+                fill="transparent" 
+                strokeDasharray={circumference} 
+                strokeDashoffset={offset} 
+                strokeLinecap="round" 
+                className="transition-all duration-1000 ease-linear" 
+              />
+              
+              {/* Laser Head Glow */}
+              <circle 
+                 cx="200" cy="200" r="180"
+                 stroke="white"
+                 strokeWidth="3"
+                 fill="none"
+                 strokeDasharray={`1, ${circumference}`}
+                 strokeDashoffset={offset}
+                 strokeLinecap="round"
+                 className="laser-head transition-all duration-1000 ease-linear"
+                 style={{ filter: `drop-shadow(0 0 8px #fff) drop-shadow(0 0 12px ${timeLeft <= 10 ? (timeLeft <= 5 ? RED : ORANGE) : BLUE})` }}
+              />
             </svg>
-            <div className={`absolute flex flex-col items-center ${timeLeft <= 10 ? 'pulse-urgent' : ''}`}>
-               <div className="text-8xl md:text-9xl font-black tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>
+            
+            {/* The Centered Time Text */}
+            <div className="absolute inset-0 flex items-center justify-center">
+               <div className={`time-display font-black tracking-tighter tabular-nums transition-colors ${timeLeft <= 5 ? 'text-red-500' : timeLeft <= 10 ? 'text-orange-500' : 'text-white'} ${getFontSize()}`}>
+                 {formatTime(timeLeft)}
+               </div>
             </div>
           </div>
+
           <div className="absolute bottom-10 flex gap-4">
-            <button onClick={() => setIsActive(!isActive)} className={`px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs ${isActive ? 'bg-slate-800' : 'bg-green-600 shadow-lg'}`}>{isActive ? 'Pause' : 'Resume'}</button>
-            <button onClick={() => { setIsActive(false); setState('setup'); }} className="px-10 py-4 rounded-2xl bg-slate-900 border border-white/10 text-slate-500 font-black uppercase tracking-widest text-xs">Reset</button>
+            <button onClick={() => setIsActive(!isActive)} className={`px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-colors ${isActive ? 'bg-slate-800' : 'bg-green-600 shadow-lg shadow-green-900/40'}`}>
+              {isActive ? 'Pause' : 'Resume'}
+            </button>
+            <button onClick={() => { setIsActive(false); setState('setup'); }} className="px-10 py-4 rounded-2xl bg-slate-900 border border-white/10 text-slate-500 font-black uppercase tracking-widest text-xs hover:text-white transition-colors">
+              Reset
+            </button>
           </div>
         </div>
       )}
     </div>
   );
 }
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App/>);
 </script>
