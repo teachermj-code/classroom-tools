@@ -21,9 +21,8 @@
         <p class="text-slate-400 font-bold tracking-[0.3em] uppercase text-[10px]">Mathematics Classroom Innovations</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl w-full mb-12">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 max-w-7xl w-full mb-12">
         
-        <!-- Mind Your Decisions Card -->
         <div class="flex flex-col h-full">
             <a href="mind-game.html" class="glass p-10 rounded-t-[2.5rem] hover:bg-white/10 transition-all group border-b-4 border-blue-500 shadow-2xl flex-1 flex flex-col">
                 <div class="text-5xl mb-6 group-hover:rotate-12 transition-transform">🧠</div>
@@ -35,7 +34,6 @@
             </button>
         </div>
 
-        <!-- Quiz Master Pro Card -->
         <div class="flex flex-col h-full">
             <a href="quiz-master.html" class="glass p-10 rounded-t-[2.5rem] hover:bg-white/10 transition-all group border-b-4 border-emerald-500 shadow-2xl flex-1 flex flex-col">
                 <div class="text-5xl mb-6 group-hover:scale-110 transition-transform">🏆</div>
@@ -47,7 +45,17 @@
             </button>
         </div>
 
-        <!-- Classroom Timer Card -->
+        <div class="flex flex-col h-full">
+            <a href="mcqs-generator.html" class="glass p-10 rounded-t-[2.5rem] hover:bg-white/10 transition-all group border-b-4 border-violet-500 shadow-2xl flex-1 flex flex-col">
+                <div class="text-5xl mb-6 group-hover:-translate-y-2 transition-transform">🖨️</div>
+                <h2 class="text-2xl font-black mb-3 uppercase italic">MCQs Generator</h2>
+                <p class="text-slate-400 text-sm leading-relaxed flex-1">Create, perfectly shuffle, and print professional multiple-choice quizzes and bubble sheets instantly.</p>
+            </a>
+            <button onclick="toggleModal('modalMCQ')" class="bg-violet-600/20 hover:bg-violet-600/40 py-3 rounded-b-[2.5rem] text-[10px] font-black uppercase tracking-widest text-violet-400 transition-all">
+                ⓘ About & Features
+            </button>
+        </div>
+
         <div class="flex flex-col h-full">
             <a href="Timer.html" class="glass p-10 rounded-t-[2.5rem] hover:bg-white/10 transition-all group border-b-4 border-red-500 shadow-2xl flex-1 flex flex-col">
                 <div class="text-5xl mb-6 group-hover:animate-pulse transition-transform">⏲️</div>
@@ -58,6 +66,7 @@
                 ⓘ About & Features
             </button>
         </div>
+
     </div>
 
     <div class="flex flex-col items-center gap-4 mb-20">
@@ -71,7 +80,6 @@
         <p class="text-xs text-slate-400 font-medium">Contextualized ICT Innovation by <span class="text-blue-500 font-black">Teacher MJ</span></p>
     </footer>
 
-    <!-- MODAL: Mind Your Decisions -->
     <div id="modalMind" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
         <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div class="flex justify-between items-center mb-8">
@@ -93,7 +101,6 @@
         </div>
     </div>
 
-    <!-- MODAL: Quiz Master Pro -->
     <div id="modalQuiz" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
         <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div class="flex justify-between items-center mb-8">
@@ -112,7 +119,24 @@
         </div>
     </div>
 
-    <!-- MODAL: Classroom Timer -->
+    <div id="modalMCQ" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-black shimmer uppercase">MCQs Generator</h2>
+                <button onclick="toggleModal('modalMCQ')" class="text-slate-500 hover:text-white text-2xl">✕</button>
+            </div>
+            <div class="space-y-6 text-sm leading-relaxed text-slate-300">
+                <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A complete printable worksheet and assessment builder designed to eliminate administrative formatting time.</p>
+                <div class="space-y-4 border-l-2 border-violet-500 pl-6">
+                    <p><b>1. Bulk Import:</b> Paste questions directly from Word/Web or import massive question banks instantly via CSV/Excel.</p>
+                    <p><b>2. Advanced Shuffling:</b> Randomize just the questions, just the A-D options, or completely shuffle both. The answer key stays flawlessly locked to the correct option no matter what.</p>
+                    <p><b>3. Print-Ready Output:</b> Generates a clean, distraction-free test paper, a teacher's letter key, and a visual bubble sheet—all perfectly scaled for Long/A4/Letter paper.</p>
+                </div>
+            </div>
+            <button onclick="toggleModal('modalMCQ')" class="w-full mt-10 py-4 bg-violet-600 rounded-2xl font-black uppercase text-xs tracking-widest">Close Guide</button>
+        </div>
+    </div>
+
     <div id="modalTimer" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
         <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div class="flex justify-between items-center mb-8">
