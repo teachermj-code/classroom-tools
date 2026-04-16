@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQs Generator</title>
+    <!-- Add SheetJS for Excel parsing (requires internet). CSV parsing will work offline natively. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            /* Default Worksheet Styling */
+            --ws-font-size: 12pt;
+            --ws-line-height: 1.5;
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .app-layout {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            max-width: 1150px;
+            margin: 0 auto;
+            align-items: flex-start;
+        }
+
+        .main-content {
+            flex: 1;
+            max-width: 850px;
+            width: 100%;
+        }
+
+        /* UI Controls - Hidden during print */
+        #ui-container {
+            width: 100%;
+            background: var(--card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 8px;
+            margin-bottom: 20px;
+            color: var(--primary);
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            ring: 2px solid rgba(37, 99, 235, 0.1);
+        }
+
+        .question-card {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .question-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        }
+
+        .choice-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .choice-row.is-correct {
+            background-color: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        .choice-row input[type="text"] {
+            flex: 1;
+        }
+
+        .btn {
+            cursor: pointer;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .btn-add { background: var(--primary); color: white; }
+        .btn-add:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        .btn-import { background: #f59e0b; color: white; }
+        .btn-import:hover { background: #d97706; transform: translateY(-1px); }
+        .btn-paste { background: #8b5cf6; color: white; }
+        .btn-paste:hover { background: #7c3aed; transform: translateY(-1px); }
+        .btn-preview { background: #3b82f6; color: white; margin-bottom: 10px; }
+        .btn-preview:hover { background: #2563eb; }
+        .btn-print { background: #10b981; color: white; }
+        .btn-print:hover { background: #059669; }
+        .btn-delete { background: #ef4444; color: white; padding: 6px 12px; font-size: 0.75rem; }
+        .btn-shuffle { background: #6366f1; color: white; }
+        .btn-shuffle:hover { background: #4f46e5; }
+        .btn-bubble { background: #475569; color: white; }
+        .btn-bubble:hover { background: #334155; }
+        .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .btn-secondary:hover { background: #e2e8f0; }
+
+        .sidebar {
+            position: sticky;
+            top: 20px;
+            width: 260px;
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sidebar .btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .sidebar-title {
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            margin-bottom: 5px;
+            margin-top: 10px;
+            padding-left: 5px;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6); 
+            backdrop-filter: blur(4px);
+            z-index: 1000; 
+            justify-content: center; 
+            align-items: center;
+            animation: fadeIn 0.2s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal-content {
+            background: white; 
+            padding: 30px; 
+            border-radius: 16px; 
+            width: 90%; 
+            max-width: 500px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #0f172a;
+        }
+        
+        .modal-header p {
+            margin: 8px 0 0;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        /* Modern Shuffle Options */
+        .shuffle-options-grid {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .shuffle-option-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            background: white;
+            width: 100%;
+        }
+        
+        .shuffle-option-card:hover {
+            border-color: var(--primary);
+            background: #eff6ff;
+            transform: translateY(-2px);
+        }
+        
+        .shuffle-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        
+        .icon-items { background: #e0e7ff; color: #4338ca; }
+        .icon-options { background: #dcfce7; color: #15803d; }
+        .icon-both { background: #ffe4e6; color: #e11d48; }
+        
+        .shuffle-text h4 { margin: 0; font-size: 0.95rem; color: #1e293b; }
+        .shuffle-text p { margin: 2px 0 0; font-size: 0.8rem; color: #64748b; }
+
+        /* Bubble Sheet Print Styles */
+        body.print-bubble-mode #worksheet-preview { display: none !important; }
+        body.print-bubble-mode #ui-container { display: none !important; }
+        body.print-bubble-mode .sidebar { display: none !important; }
+        
+        #bubble-sheet-area {
+            display: none;
+            width: var(--preview-width, 8.5in);
+            max-width: 100%;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+        }
+        
+        body.print-bubble-mode #bubble-sheet-area { display: block; }
+        
+        .bubble-grid {
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .bubble-col { flex: 1; }
+        .bubble-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .bubble-num {
+            width: 25px;
+            text-align: right;
+            margin-right: 15px;
+            font-weight: bold;
+            font-size: 11pt;
+        }
+        .bubble-circle {
+            width: 24px;
+            height: 24px;
+            border: 1.5px solid #333;
+            border-radius: 50%;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 8px;
+            font-size: 9pt;
+            color: #333;
+        }
+
+        body.preview-mode #ui-container { display: none; }
+        body.preview-mode #edit-actions { display: none; }
+        body.preview-mode .main-content { display: flex; justify-content: center; }
+
+        @media (max-width: 900px) {
+            .app-layout {
+                flex-direction: column-reverse;
+                align-items: center;
+            }
+            .sidebar {
+                position: static;
+                width: 100%;
+                max-width: 850px;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .sidebar .btn { width: auto; }
+            .sidebar-title { width: 100%; text-align: center; }
+        }
+
+        /* Printable Worksheet Styles */
+        #worksheet-area {
+            display: none;
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            margin: 0 auto;
+        }
+
+        .ws-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            font-size: 12pt;
+        }
+        
+        .ws-header-left, .ws-header-right {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .ws-header-right { text-align: right; }
+
+        .ws-title {
+            text-align: center;
+            font-size: 24pt;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .ws-directions {
+            font-style: italic;
+            margin-bottom: 25px;
+            font-size: var(--ws-font-size);
+        }
+
+        .ws-question {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            font-size: var(--ws-font-size);
+            line-height: var(--ws-line-height);
+        }
+
+        .ws-question-text {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .ws-choices {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-left: 20px;
+        }
+
+        /* Footer Hidden in UI Mode */
+        .print-footer {
+            display: none;
+        }
+
+        @media print {
+            body { background: white; padding: 0; margin: 0; }
+            .app-layout { display: block; margin: 0; max-width: none; }
+            .main-content { max-width: none; width: 100%; }
+            #ui-container, .sidebar { display: none; }
+            #worksheet-preview, body.print-bubble-mode #bubble-sheet-area { 
+                box-shadow: none !important; border: none !important; outline: none !important; margin: 0 !important; padding: 0 !important; 
+                width: 100% !important; max-width: none !important;
+            }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+            
+/* Fixed Footer */
+        .print-footer {
+            display: block;
+            position: fixed;
+            bottom: 0; 
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 9pt;
+            color: #666;
+            z-index: 1; 
+        }
+        
+/* Cleaned up Answer Key CSS */
+        .answer-key-section {
+            page-break-before: always; 
+            break-before: page;
+            padding-top: 20px;
+            padding-bottom: 40px;
+}
+
+        /* Forces the bubbles to print solid black */
+        .bubble-circle.filled {
+            background-color: #333 !important;
+            color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            border-color: #333 !important;
+        }
+
+        /* Show worksheet area in UI for live preview */
+        #worksheet-preview {
+            width: var(--preview-width, 8.5in);
+            max-width: 100%;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+        }
+
+        .instructions-box {
+            background: #e0f2fe;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #0369a1;
+            border-left: 4px solid #0ea5e9;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        <div class="main-content">
+            <div id="ui-container">
+                <h2 style="margin-top:0; font-weight: 800; color: #0f172a;">Quiz Builder</h2>
+                
+                <div class="instructions-box">
+                    <strong>Pro Tip:</strong> Use "Paste Questions" to bulk add content. If you paste from Excel or use pipe symbols (Question | Choice 1 | Choice 2 | Choice 3 | Choice 4 | Answer), the app will auto-detect answers!
+                </div>
+
+                <div class="section-title">Global Setup</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                    <div class="input-group" style="grid-column: span 2;">
+                        <label>Worksheet Title</label>
+                        <input type="text" id="input-title" placeholder="e.g., General Science Quiz 101" oninput="handleTitleInput()">
+                    </div>
+                    <div class="input-group">
+                        <label>Page Size</label>
+                        <select id="input-page-size" onchange="updatePageSize()">
+                            <option value="long" selected>Long (8.5" x 13")</option>
+                            <option value="letter">Letter (8.5" x 11")</option>
+                            <option value="a4">A4 (210mm x 297mm)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" style="grid-column: span 3;">
+                        <label>Header Fields</label>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 5px; background: #f1f5f9; padding: 12px; border-radius: 8px;">
+                            <label style="margin:0; font-weight: 500; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; color: #475569;">
+                                <input type="checkbox" id="header-name" checked onchange="updatePreview()"> Student Name
+                            </label>
+                            <label style="margin:0; font-weight: 500; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; color: #475569;">
+                                <input type="checkbox" id="header-date" checked onchange="updatePreview()"> Date
+                            </label>
+                            <label style="margin:0; font-weight: 500; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; color: #475569;">
+                                <input type="checkbox" id="header-period" onchange="updatePreview()"> Section/Period
+                            </label>
+                            <label style="margin:0; font-weight: 500; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; color: #475569;">
+                                <input type="checkbox" id="header-score" onchange="updatePreview()"> Score Space
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Layout Columns</label>
+                        <select id="input-layout" onchange="updatePreview()">
+                            <option value="1">1 Column (Standard)</option>
+                            <option value="2">2 Columns (Compact)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Choices (A-D)</label>
+                        <select id="input-choices" onchange="handleChoiceCountChange()">
+                            <option value="3">3 Choices</option>
+                            <option value="4" selected>4 Choices</option>
+                            <option value="5">5 Choices</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Font Size</label>
+                        <select id="input-font-size" onchange="updateStyles()">
+                            <option value="10pt">Small (10pt)</option>
+                            <option value="12pt" selected>Medium (12pt)</option>
+                            <option value="14pt">Large (14pt)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group" style="grid-column: span 3;">
+                        <label>Instructions</label>
+                        <textarea id="input-directions" rows="1" style="resize: vertical;" oninput="updatePreview()">Choose the best answer for each question.</textarea>
+                    </div>
+                </div>
+
+                <div class="section-title">Question Editor</div>
+                <div id="questions-list">
+                    <!-- Questions injected here -->
+                </div>
+
+            </div> <!-- End ui-container -->
+
+            <!-- Live Preview / Print Area -->
+            <div id="worksheet-preview">
+                <div id="ws-content">
+                    <!-- Rendered content -->
+                </div>
+            </div>
+            
+            <!-- Bubble Sheet Area (Hidden until print) -->
+            <div id="bubble-sheet-area"></div>
+        </div> <!-- End main-content -->
+
+        <div class="sidebar no-print">
+            
+            <div id="edit-actions" style="display: flex; flex-direction: column; gap: 15px;">
+                <div class="sidebar-title">Manage Quiz</div>
+                <button class="btn btn-add" onclick="addQuestion()">
+                    <span>+</span> Add Question
+                </button>
+                <button class="btn btn-paste" onclick="openPasteModal()">
+                    📋 Paste Bulk Text
+                </button>
+                <input type="file" id="file-upload" accept=".csv, .xlsx, .xls" style="display: none;" onchange="handleFileUpload(event)">
+                <button class="btn btn-import" onclick="document.getElementById('file-upload').click()">
+                    📁 Import Data
+                </button>
+                
+                <div class="sidebar-title">Tools</div>
+                <button class="btn btn-shuffle" onclick="openShuffleModal()">🔀 Shuffle Options</button>
+                <button class="btn btn-bubble" onclick="openBubbleModal()">⚪ Answer Sheet</button>
+                <button class="btn btn-secondary" onclick="clearAll()" style="color: #ef4444;">🗑️ Clear Data</button>
+
+                <hr style="width: 100%; border: 0; border-top: 1px solid var(--border); margin: 5px 0;">
+            </div>
+            
+            <button class="btn btn-preview" id="btn-toggle-preview" onclick="togglePreview()">
+                👁️ Preview Mode
+            </button>
+            <button class="btn btn-print" onclick="window.print()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
+                Print Quiz
+            </button>
+        </div>
+    </div> <!-- End app-layout -->
+
+    <!-- Bulk Paste Modal -->
+    <div id="paste-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: var(--primary);">Bulk Paste Questions</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 5px;">
+                <strong>Format:</strong> Question, Choices, then Answer letter.<br>
+            </p>
+            <textarea id="bulk-paste-text" placeholder="Pasted content..."></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closePasteModal()">Cancel</button>
+                <button class="btn btn-paste" onclick="processPaste()">Process & Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bubble Sheet Modal -->
+    <div id="bubble-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Generate Bubble Sheet</h3>
+                <p>Select number of items for the answer sheet.</p>
+            </div>
+            
+            <div class="input-group">
+                <label>Total Items</label>
+                <select id="bubble-count">
+                    <option value="20">20 Items</option>
+                    <option value="30">30 Items</option>
+                    <option value="40">40 Items</option>
+                    <option value="50">50 Items</option>
+                </select>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeBubbleModal()">Cancel</button>
+                <button class="btn btn-print" onclick="printBubbleSheet()">🖨️ Print Sheet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Shuffle Modal -->
+    <div id="shuffle-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="modal-header">
+                <h3>Shuffle Mode</h3>
+                <p>Choose how you'd like to randomize your quiz content.</p>
+            </div>
+            
+            <div class="shuffle-options-grid">
+                <button class="shuffle-option-card" onclick="executeShuffle('items')">
+                    <div class="shuffle-icon icon-items">📄</div>
+                    <div class="shuffle-text">
+                        <h4>Shuffle Items Only</h4>
+                        <p>Change question order, keep A-D choice order.</p>
+                    </div>
+                </button>
+                
+                <button class="shuffle-option-card" onclick="executeShuffle('options')">
+                    <div class="shuffle-icon icon-options">🔠</div>
+                    <div class="shuffle-text">
+                        <h4>Shuffle Options Only</h4>
+                        <p>Keep question order, randomize choice order.</p>
+                    </div>
+                </button>
+                
+                <button class="shuffle-option-card" onclick="executeShuffle('both')">
+                    <div class="shuffle-icon icon-both">🌪️</div>
+                    <div class="shuffle-text">
+                        <h4>Shuffle Both</h4>
+                        <p>Fully randomize both questions and choices.</p>
+                    </div>
+                </button>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="closeShuffleModal()">Nevermind</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Array uses 5 choice slots internally to support up to A-E
+        let questions = [
+            {
+                text: "Which planet is known as the Red Planet?",
+                choices: ["Earth", "Mars", "Venus", "Jupiter", ""],
+                correct: 1
+            }
+        ];
+
+        // --- Auto-Save Logic ---
+        function saveToLocalStorage() {
+            const data = {
+                title: document.getElementById('input-title').value,
+                directions: document.getElementById('input-directions').value,
+                questions: questions,
+                pageSize: document.getElementById('input-page-size').value,
+                layout: document.getElementById('input-layout').value,
+                choicesCount: document.getElementById('input-choices').value,
+                fontSize: document.getElementById('input-font-size').value
+            };
+            localStorage.setItem('quiz_builder_data', JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('quiz_builder_data');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    document.getElementById('input-title').value = data.title || "";
+                    document.getElementById('input-directions').value = data.directions || "Choose the best answer for each question.";
+                    
+                    const numChoices = parseInt(data.choicesCount || "4");
+                    questions = (data.questions || []).map(q => {
+                        let cIdx = Number(q.correct);
+                        // Prevent invalid answer index from breaking the UI
+                        if (isNaN(cIdx) || cIdx < 0 || cIdx >= numChoices) cIdx = 0;
+                        return { ...q, correct: cIdx };
+                    });
+                    
+                    document.getElementById('input-page-size').value = data.pageSize || "long";
+                    document.getElementById('input-layout').value = data.layout || "1";
+                    document.getElementById('input-choices').value = data.choicesCount || "4";
+                    document.getElementById('input-font-size').value = data.fontSize || "12pt";
+                } catch (e) {
+                    console.error("Failed to load saved data");
+                }
+            }
+        }
+
+        function getNumChoices() {
+            return parseInt(document.getElementById('input-choices').value);
+        }
+
+        function handleChoiceCountChange() {
+            renderEditor();
+            updatePreview();
+            saveToLocalStorage();
+        }
+
+        function handleTitleInput() {
+            updatePreview();
+            saveToLocalStorage();
+        }
+
+        function buildHeaderHtml() {
+            let leftFields = [];
+            let rightFields = [];
+            if (document.getElementById('header-name').checked) leftFields.push('Name: _______________________________');
+            if (document.getElementById('header-period').checked) leftFields.push('Section/Period: _________________');
+            if (document.getElementById('header-date').checked) rightFields.push('Date: _________________');
+            if (document.getElementById('header-score').checked) rightFields.push('Score: _______ / _______');
+
+            let html = '';
+            if (leftFields.length > 0) html += '<div class="ws-header-left">' + leftFields.map(f => `<div>${f}</div>`).join('') + '</div>';
+            if (rightFields.length > 0) html += '<div class="ws-header-right">' + rightFields.map(f => `<div>${f}</div>`).join('') + '</div>';
+            return html;
+        }
+
+        function openPasteModal() {
+            document.getElementById('paste-modal').style.display = 'flex';
+            document.getElementById('bulk-paste-text').focus();
+        }
+
+        function closePasteModal() {
+            document.getElementById('paste-modal').style.display = 'none';
+            document.getElementById('bulk-paste-text').value = '';
+        }
+
+        function processPaste() {
+            const text = document.getElementById('bulk-paste-text').value.trim();
+            if (!text) { closePasteModal(); return; }
+            const numChoices = getNumChoices();
+            const firstLine = text.split('\n').find(l => l.trim().length > 0) || '';
+
+            if (firstLine.includes('\t') || firstLine.split('|').length >= 3) {
+                const rows = text.split('\n').map(line => line.includes('\t') ? line.split('\t') : line.split('|').map(cell => cell.trim()));
+                processImportedData(rows, true);
+            } else {
+                const blocks = text.split(/\n\s*\n/);
+                const newQuestions = [];
+                for (let block of blocks) {
+                    const lines = block.split('\n').map(l => l.trim()).filter(l => l);
+                    if (lines.length < 2) continue;
+                    const qText = lines[0].replace(/^\d+[\.\)]\s*/, ''); 
+                    const choices = ["", "", "", "", ""];
+                    let correctIdx = 0;
+                    let choiceCount = 0;
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i];
+                        if (line.toLowerCase().startsWith('answer:')) {
+                            const ans = line.split(':')[1].trim().toUpperCase();
+                            const code = ans.charCodeAt(0) - 65; 
+                            if(code >= 0 && code < numChoices) correctIdx = code;
+                            else if(parseInt(ans) > 0 && parseInt(ans) <= numChoices) correctIdx = parseInt(ans) - 1;
+                        } else if (choiceCount < numChoices) {
+                            choices[choiceCount] = line.replace(/^[A-E][\.\)]\s*/i, '');
+                            choiceCount++;
+                        }
+                    }
+                    // Validate bounds before saving
+                    if (isNaN(correctIdx) || correctIdx < 0 || correctIdx >= numChoices) correctIdx = 0;
+                    
+                    newQuestions.push({ text: qText, choices: choices, correct: Number(correctIdx) });
+                }
+                if (newQuestions.length > 0) {
+                    questions = questions.concat(newQuestions);
+                    renderEditor();
+                    updatePreview();
+                    saveToLocalStorage();
+                }
+            }
+            closePasteModal();
+        }
+
+        function openBubbleModal() {
+            const qLen = questions.length;
+            const select = document.getElementById('bubble-count');
+            if (qLen <= 20) select.value = "20";
+            else if (qLen <= 30) select.value = "30";
+            else if (qLen <= 40) select.value = "40";
+            else select.value = "50";
+            document.getElementById('bubble-modal').style.display = 'flex';
+        }
+
+        function closeBubbleModal() {
+            document.getElementById('bubble-modal').style.display = 'none';
+        }
+
+        function printBubbleSheet() {
+            closeBubbleModal();
+            const numItems = parseInt(document.getElementById('bubble-count').value);
+            const numChoices = getNumChoices();
+            const title = document.getElementById('input-title').value || "Quiz";
+            let headerHtml = buildHeaderHtml();
+            const itemsPerCol = Math.ceil(numItems / 3);
+            let colsHtml = '';
+            for (let c = 0; c < 3; c++) {
+                let colContent = '';
+                for (let i = 1; i <= itemsPerCol; i++) {
+                    const itemNum = c * itemsPerCol + i;
+                    if (itemNum > numItems) break;
+                    let circles = '';
+                    for(let ch=0; ch<numChoices; ch++) circles += `<div class="bubble-circle">${String.fromCharCode(65 + ch)}</div>`;
+                    colContent += `<div class="bubble-row"><div class="bubble-num">${itemNum}.</div>${circles}</div>`;
+                }
+                colsHtml += `<div class="bubble-col">${colContent}</div>`;
+            }
+            document.getElementById('bubble-sheet-area').innerHTML = `
+                <div class="print-footer">Classroom Solutions | Quiz Generator | Teacher MJ</div>
+                <table style="width: 100%; border: none; border-collapse: collapse;">
+                    <tfoot style="display: table-footer-group;"><tr><td style="height: 50px; padding: 0; border: none;"></td></tr></tfoot>
+                    <tbody><tr><td style="padding: 0; border: none;">
+                        <div class="ws-header" style="font-size: 12pt; ${headerHtml ? '' : 'display: none; border-bottom: none;'}">${headerHtml}</div>
+                        <div class="ws-title">${title} - Answer Sheet</div>
+                        <div class="ws-directions" style="margin-bottom: 30px;"><strong>Directions:</strong> Shade the circle that corresponds to your answer.</div>
+                        <div class="bubble-grid">${colsHtml}</div>
+                    </td></tr></tbody>
+                </table>
+            `;
+            document.body.classList.add('print-bubble-mode');
+            setTimeout(() => { window.print(); setTimeout(() => document.body.classList.remove('print-bubble-mode'), 500); }, 150);
+        }
+
+        function openShuffleModal() {
+            document.getElementById('shuffle-modal').style.display = 'flex';
+        }
+
+        function closeShuffleModal() {
+            document.getElementById('shuffle-modal').style.display = 'none';
+        }
+
+        function executeShuffle(type) {
+            const numChoices = getNumChoices();
+            const fisherYates = (array) => {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+            };
+
+            if (type === 'items' || type === 'both') fisherYates(questions);
+
+            if (type === 'options' || type === 'both') {
+                questions.forEach(q => {
+                    // 1. Force a valid numeric fallback so the key never gets lost
+                    let currentCorrect = Number(q.correct);
+                    if (isNaN(currentCorrect) || currentCorrect < 0 || currentCorrect >= numChoices) {
+                        currentCorrect = 0;
+                    }
+
+                    let items = [];
+                    for (let i = 0; i < numChoices; i++) {
+                        items.push({ text: q.choices[i] || "", isCorrect: (i === currentCorrect) });
+                    }
+                    
+                    fisherYates(items);
+
+                    // 2. Reassign to ensure the specific text stays correct
+                    let foundCorrect = false;
+                    for (let i = 0; i < numChoices; i++) {
+                        q.choices[i] = items[i].text;
+                        if (items[i].isCorrect) {
+                            q.correct = i;
+                            foundCorrect = true;
+                        }
+                    }
+                    
+                    // Failsafe catch
+                    if (!foundCorrect) q.correct = 0;
+                });
+            }
+            renderEditor();
+            updatePreview();
+            closeShuffleModal();
+            saveToLocalStorage();
+        }
+
+        function clearAll() {
+            if (!confirm("Are you sure? This deletes everything.")) return;
+            questions = [];
+            document.getElementById('input-title').value = "";
+            renderEditor();
+            updatePreview();
+            saveToLocalStorage();
+        }
+
+        function updateStyles() {
+            const fontSizeEl = document.getElementById('input-font-size');
+            if (fontSizeEl) document.documentElement.style.setProperty('--ws-font-size', fontSizeEl.value);
+            document.documentElement.style.setProperty('--ws-line-height', 1.5);
+            saveToLocalStorage();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => file.name.endsWith('.csv') ? parseCSV(e.target.result) : parseExcel(e.target.result);
+            file.name.endsWith('.csv') ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        function processImportedData(rows, append = false) {
+            const newQs = [];
+            const numChoices = getNumChoices();
+            let startIdx = rows.length > 0 && rows[0][0]?.toString().toLowerCase().includes('question') ? 1 : 0;
+            
+            for (let i = startIdx; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || row.length < 2 || !row[0]) continue;
+                
+                const currentChoices = ["", "", "", "", ""];
+                for(let j=0; j<numChoices; j++) {
+                    currentChoices[j] = row[j+1]?.toString().trim() || '';
+                }
+
+                // Primary check Column F (Index 5)
+                let correctStr = (row[5] || row[numChoices + 1] || '').toString().trim();
+                let correctIdx = 0;
+
+                const charCode = correctStr.toUpperCase().charCodeAt(0) - 65;
+                if (charCode >= 0 && charCode < numChoices) {
+                    correctIdx = charCode;
+                } else if (parseInt(correctStr) > 0 && parseInt(correctStr) <= numChoices) {
+                    correctIdx = parseInt(correctStr) - 1;
+                } else if (correctStr !== '') {
+                    const match = currentChoices.findIndex(c => c.toLowerCase() === correctStr.toLowerCase() && c.trim() !== "");
+                    if (match !== -1) correctIdx = match;
+                }
+
+                // Force valid bounds for imported Excel/CSV data
+                if (isNaN(correctIdx) || correctIdx < 0 || correctIdx >= numChoices) {
+                    correctIdx = 0;
+                }
+
+                newQs.push({ 
+                    text: row[0].toString().trim(), 
+                    choices: currentChoices, 
+                    correct: Number(correctIdx) 
+                });
+            }
+            
+            if (newQs.length > 0) {
+                questions = append ? questions.concat(newQs) : newQs;
+                renderEditor(); updatePreview(); saveToLocalStorage();
+            }
+        }
+
+        function parseCSV(text) {
+            const rows = []; let row = []; let cell = ''; let q = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (c === '"') q = !q;
+                else if (c === ',' && !q) { row.push(cell); cell = ''; }
+                else if ((c === '\n' || c === '\r') && !q) { if(c==='\r'&&text[i+1]==='\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+                else cell += c;
+            }
+            if (cell || row.length) { row.push(cell); rows.push(row); }
+            processImportedData(rows);
+        }
+
+        function parseExcel(data) {
+            if (typeof XLSX === 'undefined') return;
+            const wb = XLSX.read(data, {type: 'array'});
+            processImportedData(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1}));
+        }
+
+        function addQuestion() {
+            questions.push({ text: "", choices: ["", "", "", "", ""], correct: 0 });
+            renderEditor(); updatePreview(); saveToLocalStorage();
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        function deleteQuestion(index) {
+            questions.splice(index, 1);
+            renderEditor(); updatePreview(); saveToLocalStorage();
+        }
+
+        function updateQuestion(index, field, value, choiceIndex = null) {
+            if (choiceIndex !== null) questions[index].choices[choiceIndex] = value;
+            else if (field === 'correct') questions[index].correct = Number(value);
+            else questions[index][field] = value;
+            updatePreview(); saveToLocalStorage();
+        }
+
+        function renderEditor() {
+            const container = document.getElementById('questions-list');
+            const numChoices = getNumChoices();
+            container.innerHTML = '';
+            if(!questions.length) {
+                container.innerHTML = '<div style="text-align:center; padding: 20px; color:#94a3b8;">Add a question to begin.</div>';
+                return;
+            }
+            questions.forEach((q, i) => {
+                const card = document.createElement('div'); card.className = 'question-card';
+                let cHtml = '';
+                for(let ci=0; ci<numChoices; ci++) {
+                    const l = String.fromCharCode(65 + ci);
+                    const isCorrect = Number(q.correct) === ci;
+                    cHtml += `<div class="choice-row ${isCorrect ? 'is-correct' : ''}">
+                        <input type="radio" name="correct_${i}" ${isCorrect ? 'checked' : ''} onchange="updateQuestion(${i}, 'correct', ${ci})">
+                        <span style="font-weight:700; color:${isCorrect ? 'var(--primary)' : '#64748b'};">${l}</span>
+                        <input type="text" value="${q.choices[ci] || ''}" oninput="updateQuestion(${i}, 'choices', this.value, ${ci})" 
+                        style="border-color: ${isCorrect ? 'var(--primary)' : 'var(--border)'};">
+                    </div>`;
+                }
+                card.innerHTML = `<div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
+                    <span style="font-weight:700; color:var(--primary);">QUESTION ${i + 1}</span>
+                    <button class="btn btn-delete" onclick="deleteQuestion(${i})">Remove</button></div>
+                    <textarea style="min-height: 60px; font-weight: 500;" oninput="updateQuestion(${i}, 'text', this.value)">${q.text}</textarea>
+                    <div class="choice-container">${cHtml}</div>`;
+                container.appendChild(card);
+            });
+        }
+
+function updatePreview() {
+            const title = document.getElementById('input-title').value || "Quiz";
+            const layout = document.getElementById('input-layout').value;
+            const dirs = document.getElementById('input-directions').value;
+            const nC = getNumChoices();
+            let hH = buildHeaderHtml();
+            
+            // Generate standard text questions
+            let qH = questions.map((q, i) => {
+                let cH = '';
+                for(let ci=0; ci<nC; ci++) if (q.choices[ci]?.trim()) cH += `<div>${String.fromCharCode(65 + ci)}. ${q.choices[ci]}</div>`;
+                return `<div class="ws-question"><div class="ws-question-text">${i + 1}. ${q.text || "________________?"}</div><div class="ws-choices">${cH}</div></div>`;
+            }).join('');
+            
+            // 1. Generate Letter Key (A, B, C, D)
+            let kH = questions.map((q, i) => `<div style="margin-bottom:5px;">${i+1}. <strong>${String.fromCharCode(65 + Number(q.correct))}</strong></div>`).join('');
+            
+            // 2. Generate Visual Bubble Sheet Answer Key
+            const itemsPerCol = Math.ceil(questions.length / 3);
+            let colsHtml = '';
+            for (let c = 0; c < 3; c++) {
+                let colContent = '';
+                for (let i = 1; i <= itemsPerCol; i++) {
+                    const qIdx = c * itemsPerCol + (i - 1);
+                    if (qIdx >= questions.length) break;
+                    const q = questions[qIdx];
+                    let circles = '';
+                    
+                    for(let ch=0; ch<nC; ch++) {
+                        const isCorrect = (ch === Number(q.correct));
+                        const filledClass = isCorrect ? ' filled' : '';
+                        circles += `<div class="bubble-circle${filledClass}">${String.fromCharCode(65 + ch)}</div>`;
+                    }
+                    colContent += `<div class="bubble-row"><div class="bubble-num">${qIdx + 1}.</div>${circles}</div>`;
+                }
+                colsHtml += `<div class="bubble-col">${colContent}</div>`;
+            }
+            
+            let bubbleKeyHtml = `<div class="bubble-grid" style="margin-top: 20px;">${colsHtml}</div>`;
+            
+            // Inject everything into the document
+            document.getElementById('ws-content').innerHTML = `
+                <div class="print-footer">Classroom Solutions | Quiz Generator | Teacher MJ</div>
+                <div class="ws-header" style="${hH ? '' : 'display: none; border-bottom: none;'}">${hH}</div>
+                <div class="ws-title">${title}</div>
+                <div class="ws-directions">${dirs}</div>
+                <div class="ws-questions-container" style="${layout === "2" ? "column-count: 2; column-gap: 40px;" : ""}">${qH}</div>
+                
+${questions.length ? `
+                <div class="answer-key-section">
+                    <div class="ws-title">Answer Key (Letters)</div>
+                    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 20px;">
+                        ${kH}
+                    </div>
+                </div>
+                
+                <div class="answer-key-section">
+                    <div class="ws-title">Answer Key (Shaded Bubbles)</div>
+                    ${bubbleKeyHtml}
+                </div>` : ''}
+            `;
+        }
+        
+function updatePageSize() {
+            const sE = document.getElementById('input-page-size'); if (!sE) return;
+            let w, h; 
+            if (sE.value === 'long') { w = '8.5in'; h = '13in'; } 
+            else if (sE.value === 'letter') { w = '8.5in'; h = '11in'; } 
+            else { w = '210mm'; h = '297mm'; }
+            
+            document.documentElement.style.setProperty('--preview-width', w);
+            let sL = document.getElementById('dynamic-print-style') || document.createElement('style');
+            sL.id = 'dynamic-print-style'; 
+            document.head.appendChild(sL);
+            
+            // Added margin-bottom: 0.6in to ensure the fixed footer has dedicated space
+            sL.innerHTML = `@media print { @page { size: ${w} ${h}; margin: 0.5in; margin-bottom: 0.6in; } }`;
+            saveToLocalStorage();
+        }
+
+        function togglePreview() {
+            document.body.classList.toggle('preview-mode');
+            const btn = document.getElementById('btn-toggle-preview');
+            btn.innerHTML = document.body.classList.contains('preview-mode') ? '✏️ Back to Edit' : '👁️ Preview Mode';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.onclick = (e) => { if (e.target.className === 'modal-overlay') { closePasteModal(); closeBubbleModal(); closeShuffleModal(); } };
+
+        loadFromLocalStorage(); updateStyles(); renderEditor(); updatePreview(); updatePageSize();
+    </script>
+</body>
+</html>
