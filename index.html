@@ -29,7 +29,7 @@
                 <h2 class="text-2xl font-black mb-3 uppercase italic">Mind Your Decisions</h2>
                 <p class="text-slate-400 text-sm leading-relaxed flex-1">Strategic review game where correct answers grant the power to keep, give, or abstain from mystery points.</p>
             </a>
-            <button onclick="toggleModal('modalMind')" class="bg-blue-600/20 hover:bg-blue-600/40 py-3 rounded-b-[2.5rem] text-[10px] font-black uppercase tracking-widest text-blue-400 transition-all">
+            <button onclick="toggleModal('modalMind')" class="bg-blue-600/20 hover:bg-blue-600/40 border-t border-white/10 py-4 rounded-b-[2.5rem] text-xs font-black uppercase tracking-widest text-blue-400 transition-all">
                 ⓘ About & How to Play
             </button>
         </div>
@@ -40,7 +40,7 @@
                 <h2 class="text-2xl font-black mb-3 uppercase italic">Quiz Master Pro</h2>
                 <p class="text-slate-400 text-sm leading-relaxed flex-1">Tiered competition engine with LaTeX support for complex Math equations and bulk CSV loading.</p>
             </a>
-            <button onclick="toggleModal('modalQuiz')" class="bg-emerald-600/20 hover:bg-emerald-600/40 py-3 rounded-b-[2.5rem] text-[10px] font-black uppercase tracking-widest text-emerald-400 transition-all">
+            <button onclick="toggleModal('modalQuiz')" class="bg-emerald-600/20 hover:bg-emerald-600/40 border-t border-white/10 py-4 rounded-b-[2.5rem] text-xs font-black uppercase tracking-widest text-emerald-400 transition-all">
                 ⓘ About & How to Play
             </button>
         </div>
@@ -51,7 +51,7 @@
                 <h2 class="text-2xl font-black mb-3 uppercase italic">MCQs Generator</h2>
                 <p class="text-slate-400 text-sm leading-relaxed flex-1">Create, perfectly shuffle, and print professional multiple-choice quizzes and bubble sheets instantly.</p>
             </a>
-            <button onclick="toggleModal('modalMCQ')" class="bg-violet-600/20 hover:bg-violet-600/40 py-3 rounded-b-[2.5rem] text-[10px] font-black uppercase tracking-widest text-violet-400 transition-all">
+            <button onclick="toggleModal('modalMCQ')" class="bg-violet-600/20 hover:bg-violet-600/40 border-t border-white/10 py-4 rounded-b-[2.5rem] text-xs font-black uppercase tracking-widest text-violet-400 transition-all">
                 ⓘ About & Features
             </button>
         </div>
@@ -62,7 +62,7 @@
                 <h2 class="text-2xl font-black mb-3 uppercase italic">Classroom Timer</h2>
                 <p class="text-slate-400 text-sm leading-relaxed flex-1">High-visibility countdown with persistent memory, audio alerts, and Teacher MJ custom branding.</p>
             </a>
-            <button onclick="toggleModal('modalTimer')" class="bg-red-600/20 hover:bg-red-600/40 py-3 rounded-b-[2.5rem] text-[10px] font-black uppercase tracking-widest text-red-400 transition-all">
+            <button onclick="toggleModal('modalTimer')" class="bg-red-600/20 hover:bg-red-600/40 border-t border-white/10 py-4 rounded-b-[2.5rem] text-xs font-black uppercase tracking-widest text-red-400 transition-all">
                 ⓘ About & Features
             </button>
         </div>
@@ -70,88 +70,96 @@
     </div>
 
     <div class="flex flex-col items-center gap-4 mb-20">
-        <a href="quiz_template.csv" download class="glass px-8 py-3 rounded-full text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 border-white/10 transition-all text-slate-300">
+        <a href="quiz_template.csv" download class="glass px-8 py-3 rounded-full text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 border-white/10 transition-all text-slate-300 hover:text-white">
             📥 Download Universal CSV Template
         </a>
     </div>
 
     <footer class="text-center pb-12">
-        <p class="text-[10px] text-slate-600 font-bold tracking-[0.4em] uppercase mb-2">Designed for the Philippine Department of Education</p>
+        <p class="text-[10px] text-slate-500 font-bold tracking-[0.4em] uppercase mb-2">Designed for the Philippine Department of Education</p>
         <p class="text-xs text-slate-400 font-medium">Contextualized ICT Innovation by <span class="text-blue-500 font-black">Teacher MJ</span></p>
     </footer>
 
     <div id="modalMind" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-        <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div class="flex justify-between items-center mb-8">
+        <div class="glass max-w-2xl w-full rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-6 lg:p-8 border-b border-white/10 bg-black/20 backdrop-blur-md shrink-0">
                 <h2 class="text-2xl font-black shimmer uppercase">Mind Your Decisions</h2>
-                <button onclick="toggleModal('modalMind')" class="text-slate-500 hover:text-white text-2xl">✕</button>
+                <button onclick="toggleModal('modalMind')" class="text-slate-400 hover:text-white text-2xl transition-colors">✕</button>
             </div>
-            <div class="space-y-6 text-sm leading-relaxed text-slate-300">
-                <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A high-engagement review tool that eliminates "spectator downtime" by requiring 100% participation in every round.</p>
-                <div class="space-y-4 border-l-2 border-blue-500 pl-6">
-                    <p><b>1. Universal Challenge:</b> All groups must solve the question within the timer. Everyone reveals their answer simultaneously.</p>
-                    <p><b>2. Eligibility:</b> Only correct groups receive a <b>+5 Accuracy Bonus</b> and earn the right to enter the Decision Phase.</p>
-                    <p><b>3. Keep, Give, or Abstain:</b> Eligible groups decide to either <b>Keep</b> mystery points, <b>Give</b> them to all ineligible teams, or <b>Abstain</b>. Choosing to abstain means you only receive the +5 bonus and are protected from other teams' "Give" actions (positive or negative).</p>
+            <div class="p-6 lg:p-8 overflow-y-auto">
+                <div class="space-y-6 text-sm leading-relaxed text-slate-200">
+                    <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A high-engagement review tool that eliminates "spectator downtime" by requiring 100% participation in every round.</p>
+                    <div class="space-y-4 border-l-2 border-blue-500 pl-6">
+                        <p><b>1. Universal Challenge:</b> All groups must solve the question within the timer. Everyone reveals their answer simultaneously.</p>
+                        <p><b>2. Eligibility:</b> Only correct groups receive a <b>+5 Accuracy Bonus</b> and earn the right to enter the Decision Phase.</p>
+                        <p><b>3. Keep, Give, or Abstain:</b> Eligible groups decide to either <b>Keep</b> mystery points, <b>Give</b> them to all ineligible teams, or <b>Abstain</b>. Choosing to abstain means you only receive the +5 bonus and are protected from other teams' "Give" actions.</p>
+                    </div>
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs italic text-slate-300">
+                        Note: Abstaining is the safest strategic move to protect your lead!
+                    </div>
                 </div>
-                <div class="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs italic">
-                    Note: Abstaining is the safest strategic move to protect your lead!
-                </div>
+                <button onclick="toggleModal('modalMind')" class="w-full mt-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-colors">Close Guide</button>
             </div>
-            <button onclick="toggleModal('modalMind')" class="w-full mt-10 py-4 bg-blue-600 rounded-2xl font-black uppercase text-xs tracking-widest">Close Guide</button>
         </div>
     </div>
 
     <div id="modalQuiz" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-        <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div class="flex justify-between items-center mb-8">
+        <div class="glass max-w-2xl w-full rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-6 lg:p-8 border-b border-white/10 bg-black/20 backdrop-blur-md shrink-0">
                 <h2 class="text-2xl font-black shimmer uppercase tracking-tighter">Quiz Master Pro</h2>
-                <button onclick="toggleModal('modalQuiz')" class="text-slate-500 hover:text-white text-2xl">✕</button>
+                <button onclick="toggleModal('modalQuiz')" class="text-slate-400 hover:text-white text-2xl transition-colors">✕</button>
             </div>
-            <div class="space-y-6 text-sm leading-relaxed text-slate-300">
-                <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A formal tiered competition engine designed for Summative Assessments and Quiz Bees.</p>
-                <div class="space-y-4 border-l-2 border-emerald-500 pl-6">
-                    <p><b>1. Tiered Levels:</b> Organize questions into Easy (1pt), Average (3pts), and Difficult (5pts) categories using the CSV Tier column.</p>
-                    <p><b>2. Bounty Mode:</b> Press <b>'B'</b> to toggle Bounty Mode, doubling the score for the current question to increase stakes.</p>
-                    <p><b>3. Math Fidelity:</b> Fully integrated with KaTeX. Use `$` symbols in your CSV to render professional fractions, roots, and equations.</p>
+            <div class="p-6 lg:p-8 overflow-y-auto">
+                <div class="space-y-6 text-sm leading-relaxed text-slate-200">
+                    <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A formal tiered competition engine designed for Summative Assessments and Quiz Bees.</p>
+                    <div class="space-y-4 border-l-2 border-emerald-500 pl-6">
+                        <p><b>1. Tiered Levels:</b> Organize questions into Easy (1pt), Average (3pts), and Difficult (5pts) categories using the CSV Tier column.</p>
+                        <p><b>2. Bounty Mode:</b> Press <b>'B'</b> to toggle Bounty Mode, doubling the score for the current question to increase stakes.</p>
+                        <p><b>3. Math Fidelity:</b> Fully integrated with KaTeX. Use `$` symbols in your CSV to render professional fractions, roots, and equations.</p>
+                    </div>
                 </div>
+                <button onclick="toggleModal('modalQuiz')" class="w-full mt-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-colors">Close Guide</button>
             </div>
-            <button onclick="toggleModal('modalQuiz')" class="w-full mt-10 py-4 bg-emerald-600 rounded-2xl font-black uppercase text-xs tracking-widest">Close Guide</button>
         </div>
     </div>
 
     <div id="modalMCQ" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-        <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div class="flex justify-between items-center mb-8">
+        <div class="glass max-w-2xl w-full rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-6 lg:p-8 border-b border-white/10 bg-black/20 backdrop-blur-md shrink-0">
                 <h2 class="text-2xl font-black shimmer uppercase">MCQs Generator</h2>
-                <button onclick="toggleModal('modalMCQ')" class="text-slate-500 hover:text-white text-2xl">✕</button>
+                <button onclick="toggleModal('modalMCQ')" class="text-slate-400 hover:text-white text-2xl transition-colors">✕</button>
             </div>
-            <div class="space-y-6 text-sm leading-relaxed text-slate-300">
-                <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A complete printable worksheet and assessment builder designed to eliminate administrative formatting time.</p>
-                <div class="space-y-4 border-l-2 border-violet-500 pl-6">
-                    <p><b>1. Bulk Import:</b> Paste questions directly from Word/Web or import massive question banks instantly via CSV/Excel.</p>
-                    <p><b>2. Advanced Shuffling:</b> Randomize just the questions, just the A-D options, or completely shuffle both. The answer key stays flawlessly locked to the correct option no matter what.</p>
-                    <p><b>3. Print-Ready Output:</b> Generates a clean, distraction-free test paper, a teacher's letter key, and a visual bubble sheet—all perfectly scaled for Long/A4/Letter paper.</p>
+            <div class="p-6 lg:p-8 overflow-y-auto">
+                <div class="space-y-6 text-sm leading-relaxed text-slate-200">
+                    <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A complete printable worksheet and assessment builder designed to eliminate administrative formatting time.</p>
+                    <div class="space-y-4 border-l-2 border-violet-500 pl-6">
+                        <p><b>1. Bulk Import:</b> Paste questions directly from Word/Web or import massive question banks instantly via CSV/Excel.</p>
+                        <p><b>2. Advanced Shuffling:</b> Randomize just the questions, just the A-D options, or completely shuffle both. The answer key stays flawlessly locked to the correct option no matter what.</p>
+                        <p><b>3. Print-Ready Output:</b> Generates a clean, distraction-free test paper, a teacher's letter key, and a visual bubble sheet—all perfectly scaled for Long/A4/Letter paper.</p>
+                    </div>
                 </div>
+                <button onclick="toggleModal('modalMCQ')" class="w-full mt-10 py-4 bg-violet-600 hover:bg-violet-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-colors">Close Guide</button>
             </div>
-            <button onclick="toggleModal('modalMCQ')" class="w-full mt-10 py-4 bg-violet-600 rounded-2xl font-black uppercase text-xs tracking-widest">Close Guide</button>
         </div>
     </div>
 
     <div id="modalTimer" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-        <div class="glass max-w-2xl w-full p-8 lg:p-12 rounded-[3rem] border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div class="flex justify-between items-center mb-8">
+        <div class="glass max-w-2xl w-full rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-6 lg:p-8 border-b border-white/10 bg-black/20 backdrop-blur-md shrink-0">
                 <h2 class="text-2xl font-black shimmer uppercase">Classroom Timer</h2>
-                <button onclick="toggleModal('modalTimer')" class="text-slate-500 hover:text-white text-2xl">✕</button>
+                <button onclick="toggleModal('modalTimer')" class="text-slate-400 hover:text-white text-2xl transition-colors">✕</button>
             </div>
-            <div class="space-y-6 text-sm leading-relaxed text-slate-300">
-                <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A precision tool to manage classroom time efficiently, ensuring smooth transitions and focused work periods.</p>
-                <div class="space-y-4 border-l-2 border-red-500 pl-6">
-                    <p><b>1. Persistent Memory:</b> Remembers your last duration even after a refresh.</p>
-                    <p><b>2. Visual Cues:</b> High-visibility ring and "Urgency Mode" for the final 10 seconds.</p>
-                    <p><b>3. Audio Alerts:</b> Distinct procedural ticks and alarm tones.</p>
+            <div class="p-6 lg:p-8 overflow-y-auto">
+                <div class="space-y-6 text-sm leading-relaxed text-slate-200">
+                    <p><b class="text-white uppercase tracking-wider">The Innovation:</b> A precision tool to manage classroom time efficiently, ensuring smooth transitions and focused work periods.</p>
+                    <div class="space-y-4 border-l-2 border-red-500 pl-6">
+                        <p><b>1. Persistent Memory:</b> Remembers your last duration even after a refresh.</p>
+                        <p><b>2. Visual Cues:</b> High-visibility ring and "Urgency Mode" for the final 10 seconds.</p>
+                        <p><b>3. Audio Alerts:</b> Distinct procedural ticks and alarm tones.</p>
+                    </div>
                 </div>
+                <button onclick="toggleModal('modalTimer')" class="w-full mt-10 py-4 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-colors">Close Guide</button>
             </div>
-            <button onclick="toggleModal('modalTimer')" class="w-full mt-10 py-4 bg-red-600 rounded-2xl font-black uppercase text-xs tracking-widest">Close Guide</button>
         </div>
     </div>
 
