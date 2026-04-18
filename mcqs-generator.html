@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MCQs Generator</title>
-    <!-- Add SheetJS for Excel parsing (requires internet). CSV parsing will work offline natively. -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -401,54 +400,61 @@
             margin-left: 20px;
         }
 
-        /* Footer Hidden in UI Mode */
+        /* 1. The Actual Footer (Fixed to the bottom) */
         .print-footer {
-            display: none;
+            display: none; /* Hidden on screen */
+        }
+
+        /* 2. The Invisible Spacer */
+        .footer-space {
+            height: 50px; /* Carves out space at the bottom of the table on print */
         }
 
         @media print {
             body { background: white; padding: 0; margin: 0; }
             .app-layout { display: block; margin: 0; max-width: none; }
             .main-content { max-width: none; width: 100%; }
-            #ui-container, .sidebar { display: none; }
+            
+            #ui-container, .sidebar, .no-print { display: none !important; }
+            
             #worksheet-preview, body.print-bubble-mode #bubble-sheet-area { 
                 box-shadow: none !important; border: none !important; outline: none !important; margin: 0 !important; padding: 0 !important; 
                 width: 100% !important; max-width: none !important;
             }
-            .no-print { display: none; }
+            
             .page-break { page-break-before: always; }
             
-/* Fixed Footer */
-        .print-footer {
-            display: block;
-            position: fixed;
-            bottom: 0; 
-            left: 0;
-            width: 100%;
-            text-align: center;
-            font-size: 9pt;
-            color: #666;
-            z-index: 1; 
-        }
-        
-/* Cleaned up Answer Key CSS */
-        .answer-key-section {
-            page-break-before: always; 
-            break-before: page;
-            padding-top: 20px;
-            padding-bottom: 40px;
-}
+            /* Activate the Fixed Footer Hack */
+            .print-footer {
+                display: block !important;
+                position: fixed;
+                bottom: 0; 
+                left: 0;
+                width: 100%;
+                height: 30px;
+                text-align: center;
+                font-size: 9pt;
+                color: #666;
+                background: white; /* Ensures it masks anything underneath it */
+                z-index: 9999; 
+            }
+            
+            .answer-key-section {
+                page-break-before: always; 
+                break-before: page;
+                padding-top: 20px;
+                padding-bottom: 40px;
+            }
 
-        /* Forces the bubbles to print solid black */
-        .bubble-circle.filled {
-            background-color: #333 !important;
-            color: white !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            border-color: #333 !important;
+            .bubble-circle.filled {
+                background-color: #333 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                border-color: #333 !important;
+            }
         }
 
-        /* Show worksheet area in UI for live preview */
         #worksheet-preview {
             width: var(--preview-width, 8.5in);
             max-width: 100%;
@@ -471,6 +477,8 @@
     </style>
 </head>
 <body>
+
+    <div class="print-footer">Classroom Solutions | Quiz Generator | Teacher MJ</div>
 
     <div class="app-layout">
         <div class="main-content">
@@ -546,23 +554,15 @@
 
                 <div class="section-title">Question Editor</div>
                 <div id="questions-list">
-                    <!-- Questions injected here -->
-                </div>
+                    </div>
 
-            </div> <!-- End ui-container -->
-
-            <!-- Live Preview / Print Area -->
-            <div id="worksheet-preview">
+            </div> <div id="worksheet-preview">
                 <div id="ws-content">
-                    <!-- Rendered content -->
-                </div>
+                    </div>
             </div>
             
-            <!-- Bubble Sheet Area (Hidden until print) -->
             <div id="bubble-sheet-area"></div>
-        </div> <!-- End main-content -->
-
-        <div class="sidebar no-print">
+        </div> <div class="sidebar no-print">
             
             <div id="edit-actions" style="display: flex; flex-direction: column; gap: 15px;">
                 <div class="sidebar-title">Manage Quiz</div>
@@ -593,10 +593,7 @@
                 Print Quiz
             </button>
         </div>
-    </div> <!-- End app-layout -->
-
-    <!-- Bulk Paste Modal -->
-    <div id="paste-modal" class="modal-overlay">
+    </div> <div id="paste-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 style="margin-top: 0; color: var(--primary);">Bulk Paste Questions</h3>
             <p style="font-size: 0.9rem; margin-bottom: 5px;">
@@ -610,7 +607,6 @@
         </div>
     </div>
 
-    <!-- Bubble Sheet Modal -->
     <div id="bubble-modal" class="modal-overlay">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
@@ -635,7 +631,6 @@
         </div>
     </div>
 
-    <!-- Modern Shuffle Modal -->
     <div id="shuffle-modal" class="modal-overlay">
         <div class="modal-content" style="max-width: 440px;">
             <div class="modal-header">
@@ -843,18 +838,26 @@
                 }
                 colsHtml += `<div class="bubble-col">${colContent}</div>`;
             }
+            
+            // THE BUBBLE SHEET TABLE INJECTION
             document.getElementById('bubble-sheet-area').innerHTML = `
-                <div class="print-footer">Classroom Solutions | Quiz Generator | Teacher MJ</div>
                 <table style="width: 100%; border: none; border-collapse: collapse;">
-                    <tfoot style="display: table-footer-group;"><tr><td style="height: 50px; padding: 0; border: none;"></td></tr></tfoot>
-                    <tbody><tr><td style="padding: 0; border: none;">
-                        <div class="ws-header" style="font-size: 12pt; ${headerHtml ? '' : 'display: none; border-bottom: none;'}">${headerHtml}</div>
-                        <div class="ws-title">${title} - Answer Sheet</div>
-                        <div class="ws-directions" style="margin-bottom: 30px;"><strong>Directions:</strong> Shade the circle that corresponds to your answer.</div>
-                        <div class="bubble-grid">${colsHtml}</div>
-                    </td></tr></tbody>
+                    <tbody>
+                        <tr><td style="padding: 0; border: none;">
+                            <div class="ws-header" style="font-size: 12pt; ${headerHtml ? '' : 'display: none; border-bottom: none;'}">${headerHtml}</div>
+                            <div class="ws-title">${title} - Answer Sheet</div>
+                            <div class="ws-directions" style="margin-bottom: 30px;"><strong>Directions:</strong> Shade the circle that corresponds to your answer.</div>
+                            <div class="bubble-grid">${colsHtml}</div>
+                        </td></tr>
+                    </tbody>
+                    <tfoot style="display: table-footer-group;">
+                        <tr><td style="border: none; padding: 0;">
+                            <div class="footer-space">&nbsp;</div>
+                        </td></tr>
+                    </tfoot>
                 </table>
             `;
+            
             document.body.classList.add('print-bubble-mode');
             setTimeout(() => { window.print(); setTimeout(() => document.body.classList.remove('print-bubble-mode'), 500); }, 150);
         }
@@ -880,7 +883,6 @@
 
             if (type === 'options' || type === 'both') {
                 questions.forEach(q => {
-                    // 1. Force a valid numeric fallback so the key never gets lost
                     let currentCorrect = Number(q.correct);
                     if (isNaN(currentCorrect) || currentCorrect < 0 || currentCorrect >= numChoices) {
                         currentCorrect = 0;
@@ -893,7 +895,6 @@
                     
                     fisherYates(items);
 
-                    // 2. Reassign to ensure the specific text stays correct
                     let foundCorrect = false;
                     for (let i = 0; i < numChoices; i++) {
                         q.choices[i] = items[i].text;
@@ -903,7 +904,6 @@
                         }
                     }
                     
-                    // Failsafe catch
                     if (!foundCorrect) q.correct = 0;
                 });
             }
@@ -952,7 +952,6 @@
                     currentChoices[j] = row[j+1]?.toString().trim() || '';
                 }
 
-                // Primary check Column F (Index 5)
                 let correctStr = (row[5] || row[numChoices + 1] || '').toString().trim();
                 let correctIdx = 0;
 
@@ -966,7 +965,6 @@
                     if (match !== -1) correctIdx = match;
                 }
 
-                // Force valid bounds for imported Excel/CSV data
                 if (isNaN(correctIdx) || correctIdx < 0 || correctIdx >= numChoices) {
                     correctIdx = 0;
                 }
@@ -1051,24 +1049,21 @@
             });
         }
 
-function updatePreview() {
+        function updatePreview() {
             const title = document.getElementById('input-title').value || "Quiz";
             const layout = document.getElementById('input-layout').value;
             const dirs = document.getElementById('input-directions').value;
             const nC = getNumChoices();
             let hH = buildHeaderHtml();
             
-            // Generate standard text questions
             let qH = questions.map((q, i) => {
                 let cH = '';
                 for(let ci=0; ci<nC; ci++) if (q.choices[ci]?.trim()) cH += `<div>${String.fromCharCode(65 + ci)}. ${q.choices[ci]}</div>`;
                 return `<div class="ws-question"><div class="ws-question-text">${i + 1}. ${q.text || "________________?"}</div><div class="ws-choices">${cH}</div></div>`;
             }).join('');
             
-            // 1. Generate Letter Key (A, B, C, D)
             let kH = questions.map((q, i) => `<div style="margin-bottom:5px;">${i+1}. <strong>${String.fromCharCode(65 + Number(q.correct))}</strong></div>`).join('');
             
-            // 2. Generate Visual Bubble Sheet Answer Key
             const itemsPerCol = Math.ceil(questions.length / 3);
             let colsHtml = '';
             for (let c = 0; c < 3; c++) {
@@ -1091,30 +1086,40 @@ function updatePreview() {
             
             let bubbleKeyHtml = `<div class="bubble-grid" style="margin-top: 20px;">${colsHtml}</div>`;
             
-            // Inject everything into the document
+            // THE WORKSHEET TABLE INJECTION
             document.getElementById('ws-content').innerHTML = `
-                <div class="print-footer">Classroom Solutions | Quiz Generator | Teacher MJ</div>
-                <div class="ws-header" style="${hH ? '' : 'display: none; border-bottom: none;'}">${hH}</div>
-                <div class="ws-title">${title}</div>
-                <div class="ws-directions">${dirs}</div>
-                <div class="ws-questions-container" style="${layout === "2" ? "column-count: 2; column-gap: 40px;" : ""}">${qH}</div>
-                
-${questions.length ? `
-                <div class="answer-key-section">
-                    <div class="ws-title">Answer Key (Letters)</div>
-                    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 20px;">
-                        ${kH}
-                    </div>
-                </div>
-                
-                <div class="answer-key-section">
-                    <div class="ws-title">Answer Key (Shaded Bubbles)</div>
-                    ${bubbleKeyHtml}
-                </div>` : ''}
+                <table style="width: 100%; border: none; border-collapse: collapse;">
+                    <tbody>
+                        <tr><td style="padding: 0; border: none;">
+                            <div class="ws-header" style="${hH ? '' : 'display: none; border-bottom: none;'}">${hH}</div>
+                            <div class="ws-title">${title}</div>
+                            <div class="ws-directions">${dirs}</div>
+                            <div class="ws-questions-container" style="${layout === "2" ? "column-count: 2; column-gap: 40px;" : ""}">${qH}</div>
+                            
+            ${questions.length ? `
+                            <div class="answer-key-section">
+                                <div class="ws-title">Answer Key (Letters)</div>
+                                <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 20px;">
+                                    ${kH}
+                                </div>
+                            </div>
+                            
+                            <div class="answer-key-section">
+                                <div class="ws-title">Answer Key (Shaded Bubbles)</div>
+                                ${bubbleKeyHtml}
+                            </div>` : ''}
+                        </td></tr>
+                    </tbody>
+                    <tfoot style="display: table-footer-group;">
+                        <tr><td style="border: none; padding: 0;">
+                            <div class="footer-space">&nbsp;</div>
+                        </td></tr>
+                    </tfoot>
+                </table>
             `;
         }
         
-function updatePageSize() {
+        function updatePageSize() {
             const sE = document.getElementById('input-page-size'); if (!sE) return;
             let w, h; 
             if (sE.value === 'long') { w = '8.5in'; h = '13in'; } 
@@ -1126,8 +1131,8 @@ function updatePageSize() {
             sL.id = 'dynamic-print-style'; 
             document.head.appendChild(sL);
             
-            // Added margin-bottom: 0.6in to ensure the fixed footer has dedicated space
-            sL.innerHTML = `@media print { @page { size: ${w} ${h}; margin: 0.5in; margin-bottom: 0.6in; } }`;
+            // Retains your original margin settings
+            sL.innerHTML = `@media print { @page { size: ${w} ${h}; margin: 0.5in; margin-bottom: 0.2in; } }`;
             saveToLocalStorage();
         }
 
